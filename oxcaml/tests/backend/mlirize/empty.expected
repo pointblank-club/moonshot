@@ -1,0 +1,12 @@
+// dialect: oxcaml_high
+module Empty {
+  // <0 functions>
+}
+// dialect: oxcaml_mid
+module Empty {
+  // <0 functions, 0 data items>
+}
+// dialect: llvm
+module Empty {
+
+}

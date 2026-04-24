@@ -76,8 +76,6 @@
 
 (copy_files# backend/llvm/*.ml{,i})
 
-
-
 (copy_files# backend/peephole/*.ml{,i})
 
 (copy_files# backend/x86_peephole/*.ml{,i})
@@ -667,6 +665,14 @@
   ;; backend/llvm
   llvm_ir
   llvmize
+  ;; backend/mlir
+  mlir_dialect_high
+  mlir_dialect_mid
+  mlir_dialect_llvm
+  mlir_lower_typed_to_high
+  mlir_lower_high_to_mid
+  mlir_lower_mid_to_llvm
+  mlirize
   ;; backend/regalloc
   regalloc_affinity
   regalloc_gi
