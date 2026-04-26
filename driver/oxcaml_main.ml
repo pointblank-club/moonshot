@@ -1,4 +1,5 @@
 let () =
+  Mlirize.init ();
   (match Sys.backend_type with
    | Native -> Memtrace.trace_if_requested ~context:"ocamlopt" ()
    | Bytecode | Other _ -> ());

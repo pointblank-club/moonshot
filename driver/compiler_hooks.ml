@@ -29,6 +29,7 @@ type _ pass =
 
   | Inlining_tree : Flambda2_simplify_shared.Inlining_report.Inlining_tree.t pass
   | Check_allocations : Zero_alloc_checker.iter_witnesses pass
+  | Mlirize : (string * Typedtree.implementation * Format.formatter) pass
 
 type t = {
   mutable parse_tree_intf : (Parsetree.signature -> unit) list;
@@ -46,7 +47,8 @@ type t = {
   mutable cfg : (Cfg_with_layout.t -> unit) list;
   mutable cmm : (Cmm.phrase list -> unit) list;
   mutable inlining_tree : (Flambda2_simplify_shared.Inlining_report.Inlining_tree.t -> unit) list;
-  mutable check_allocations : (Zero_alloc_checker.iter_witnesses -> unit) list
+  mutable check_allocations : (Zero_alloc_checker.iter_witnesses -> unit) list;
+  mutable mlirize : ((string * Typedtree.implementation * Format.formatter) -> unit) list
 }
 let hooks : t = {
   parse_tree_intf = [];
@@ -65,6 +67,7 @@ let hooks : t = {
   cmm = [];
   inlining_tree = [];
   check_allocations = [];
+  mlirize = [];
 }
 
 let execute_hooks : type a. (a -> unit) list -> a -> unit = fun hooks arg ->
@@ -91,6 +94,7 @@ let register : type a. a pass -> (a -> unit) -> unit =
   | Inlining_tree -> hooks.inlining_tree <- f :: hooks.inlining_tree
   | Check_allocations ->
     hooks.check_allocations <- f :: hooks.check_allocations
+  | Mlirize -> hooks.mlirize <- f :: hooks.mlirize
 
 let execute : type a. a pass -> a -> unit =
   fun representation arg ->
@@ -111,11 +115,13 @@ let execute : type a. a pass -> a -> unit =
   | Cmm -> execute_hooks hooks.cmm arg
   | Inlining_tree -> execute_hooks hooks.inlining_tree arg
   | Check_allocations -> execute_hooks hooks.check_allocations arg
+  | Mlirize -> execute_hooks hooks.mlirize arg
 
 let execute_and_pipe r a = execute r a; a
 
 let clear : type a. a pass -> unit =
-  function
+  fun representation ->
+  match representation with
   | Parse_tree_intf -> hooks.parse_tree_intf <- []
   | Parse_tree_impl -> hooks.parse_tree_impl <- []
   | Typed_tree_intf -> hooks.typed_tree_intf <- []
@@ -132,3 +138,4 @@ let clear : type a. a pass -> unit =
   | Cmm -> hooks.cmm <- []
   | Inlining_tree -> hooks.inlining_tree <- []
   | Check_allocations -> hooks.check_allocations <- []
+  | Mlirize -> hooks.mlirize <- []

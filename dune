@@ -60,6 +60,7 @@
 (copy_files# optcomp/*.ml{,i})
 
 (copy_files# backend/*.ml{,i})
+(copy_files# backend/mlir/*.ml{,i})
 
 (copy_files# "backend/%{env:ARCH=amd64}/*.ml{,i}")
 
@@ -74,6 +75,8 @@
 (copy_files# backend/internal_assembler/*.ml{,i})
 
 (copy_files# backend/llvm/*.ml{,i})
+
+
 
 (copy_files# backend/peephole/*.ml{,i})
 
@@ -783,8 +786,11 @@
   gc_timings
   ocamloptcomp
   ocamlcommon
-  unix)
- (modules oxcaml_main))
+  unix
+  mlir_ocaml_bindings)
+ (ocamlopt_flags
+  (:standard -I +unix unix.cmxa -I +threads threads.cmxa -I %{env:OPAM_SWITCH_PREFIX=}/lib/integers -I %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes -I %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes-foreign %{env:OPAM_SWITCH_PREFIX=}/lib/integers/integers.cmxa %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes/ctypes.cmxa %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes-foreign/ctypes_foreign.cmxa))
+ (modules mlirize oxcaml_main))
 
 (rule
  (targets oxcaml_main_native.ml)
@@ -796,8 +802,6 @@
  (modes native)
  (instrumentation
   (backend bisect_ppx))
- (ocamlopt_flags
-  (:standard -runtime-variant nnp))
  (libraries
   memtrace
   flambda2
@@ -806,8 +810,11 @@
   gc_timings
   ocamloptcomp
   ocamlcommon
-  unix)
- (modules oxcaml_main_native))
+  unix
+  mlir_ocaml_bindings)
+ (ocamlopt_flags
+  (:standard -runtime-variant nnp -I +unix unix.cmxa -I +threads threads.cmxa -I %{env:OPAM_SWITCH_PREFIX=}/lib/integers -I %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes -I %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes-foreign %{env:OPAM_SWITCH_PREFIX=}/lib/integers/integers.cmxa %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes/ctypes.cmxa %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes-foreign/ctypes_foreign.cmxa))
+ (modules mlirize oxcaml_main_native))
 
 ; CR sdolan: Could be faster if it was closure-only?
 
@@ -819,14 +826,16 @@
  ; We don't use [unix] in [libraries] as that causes ocaml/otherlibs/unix/
  ; to be built against the system compiler, which won't work.
  (ocamlc_flags (:standard -I +unix unix.cma))
- (ocamlopt_flags (:standard -I +unix unix.cmxa))
  (libraries
   flambda2
   flambda2_ui
   flambda2_to_cmm
   ocamloptcomp
-  ocamlcommon)
- (modules boot_ocamlopt))
+  ocamlcommon
+  mlir_ocaml_bindings)
+ (ocamlopt_flags
+  (:standard -I +unix unix.cmxa -I +threads threads.cmxa -I %{env:OPAM_SWITCH_PREFIX=}/lib/integers -I %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes -I %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes-foreign %{env:OPAM_SWITCH_PREFIX=}/lib/integers/integers.cmxa %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes/ctypes.cmxa %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes-foreign/ctypes_foreign.cmxa))
+ (modules mlirize boot_ocamlopt))
 
 ; The input archives (.a, .cma and .cmxa) to the following three rules
 ; must be kept in sync with each other and in a topological order.
