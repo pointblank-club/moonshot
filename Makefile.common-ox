@@ -151,8 +151,13 @@ runtest: compiler
 runtest-llvmize: compiler
 	RUNTIME_DIR=$(RUNTIME_DIR) OXCAML_NAME_MANGLING=$(NAME_MANGLING_SCHEME) $(dune) build @runtest-llvmize $(ws_main)
 
-runtest-mlirize: compiler
-	RUNTIME_DIR=$(RUNTIME_DIR) OXCAML_NAME_MANGLING=$(NAME_MANGLING_SCHEME) $(dune) build @runtest-mlirize $(ws_main)
+runtest-mlirize: boot-compiler
+	@for t in empty comparisons; do \
+	  _build/_bootinstall/bin/ocamlopt.opt -nostdlib -nopervasives -mlir-backend \
+	    -c oxcaml/tests/backend/mlirize/$$t.ml 2>&1 \
+	  | diff oxcaml/tests/backend/mlirize/$$t.expected - >/dev/null \
+	  && echo "$$t: PASS" || { echo "$$t: FAIL"; exit 1; }; \
+	done
 
 runtest-dwarf: compiler
 	RUNTIME_DIR=$(RUNTIME_DIR) OXCAML_NAME_MANGLING=$(NAME_MANGLING_SCHEME) $(dune) build @runtest-dwarf $(ws_main)
