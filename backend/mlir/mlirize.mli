@@ -25,3 +25,5 @@ val compile_from_typed
   -> ppf_dump:Format.formatter
   -> Typedtree.implementation
   -> unit
+
+val init : unit -> unit

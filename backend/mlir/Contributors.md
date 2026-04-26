@@ -5,9 +5,12 @@ Experimental `-mlir-backend` pipeline.
 Pipeline stages:
 ```
 Typedtree
-  --[ mlir_lower_typed_to_high ]--> Mlir_dialect_high
-  --[ mlir_lower_high_to_mid  ]--> Mlir_dialect_mid
-  --[ mlir_lower_mid_to_llvm  ]--> Mlir_dialect_llvm --> textual LLVM IR
+  --[ dialect/ ]--> Hight level dialect for MLIR
+      --[ ir/ ]--> Tablegen definitions
+  --[ frontend/ ]--> Lowers typedtree to high-level dialect
+  --[ lowering  ]--> Hight level dialect to mid-level/llvm dialect
+      --[ direct  ]--> Direct lowering to llvm
+      --[ through_mlir  ]--> Lowering through MLIR standard dialects like arith, memref, etc.
 ```
 
 Entry point: `Mlirize.compile_from_typed` (hooked from `optcomp/optcompile.ml`).
