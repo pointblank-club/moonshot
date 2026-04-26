@@ -26,6 +26,7 @@ depends: [
 
   "merlin"
   "ocaml-lsp-server"
+  "mlir_ocaml_bindings" {= "dev"}
 ]
 # The upstream compiler used for building OxCaml should not be configured with
 # any of these options.
@@ -39,4 +40,7 @@ conflicts: [
   "ocaml-option-static"
   "ocaml-option-tsan"
 ]
+pin-depends: [
+  ["mlir_ocaml_bindings.dev" "git+https://github.com/pointblank-club/mlir_ocaml_bindings.git"]
+  ]
 flags: compiler
