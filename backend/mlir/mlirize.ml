@@ -7,7 +7,7 @@
 (**************************************************************************)
 
 [@@@warning "-33"]
-open Mlir
+open Omlir
 
 let compile_from_typed ~module_name ~ppf_dump _impl =
     Format.fprintf ppf_dump "Compiling module %s to MLIR\n%!" module_name;

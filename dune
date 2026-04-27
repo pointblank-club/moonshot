@@ -785,7 +785,7 @@
   ocamloptcomp
   ocamlcommon
   unix
-  mlir_ocaml_bindings)
+  omlir)
  (ocamlopt_flags
   (:standard -I +unix unix.cmxa -I +threads threads.cmxa -I %{env:OPAM_SWITCH_PREFIX=}/lib/integers -I %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes -I %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes-foreign %{env:OPAM_SWITCH_PREFIX=}/lib/integers/integers.cmxa %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes/ctypes.cmxa %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes-foreign/ctypes_foreign.cmxa))
  (modules mlirize oxcaml_main))
@@ -809,7 +809,7 @@
   ocamloptcomp
   ocamlcommon
   unix
-  mlir_ocaml_bindings)
+  omlir)
  (ocamlopt_flags
   (:standard -runtime-variant nnp -I +unix unix.cmxa -I +threads threads.cmxa -I %{env:OPAM_SWITCH_PREFIX=}/lib/integers -I %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes -I %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes-foreign %{env:OPAM_SWITCH_PREFIX=}/lib/integers/integers.cmxa %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes/ctypes.cmxa %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes-foreign/ctypes_foreign.cmxa))
  (modules mlirize oxcaml_main_native))
@@ -830,7 +830,7 @@
   flambda2_to_cmm
   ocamloptcomp
   ocamlcommon
-  mlir_ocaml_bindings)
+  omlir)
  (ocamlopt_flags
   (:standard -I +unix unix.cmxa -I +threads threads.cmxa -I %{env:OPAM_SWITCH_PREFIX=}/lib/integers -I %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes -I %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes-foreign %{env:OPAM_SWITCH_PREFIX=}/lib/integers/integers.cmxa %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes/ctypes.cmxa %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes-foreign/ctypes_foreign.cmxa))
  (modules mlirize boot_ocamlopt))
