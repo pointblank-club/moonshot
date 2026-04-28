@@ -1,0 +1,49 @@
+module {
+  func.func @cst() -> i64 {
+    %c85_i64 = arith.constant 85 : i64
+    return %c85_i64 : i64
+  }
+  func.func @add(%arg0: i64, %arg1: i64) -> i64 {
+    %0 = arith.addi %arg0, %arg1 : i64
+    %c1_i64 = arith.constant 1 : i64
+    %1 = arith.subi %0, %c1_i64 : i64
+    return %1 : i64
+  }
+  func.func @sub(%arg0: i64, %arg1: i64) -> i64 {
+    %0 = arith.subi %arg0, %arg1 : i64
+    %c1_i64 = arith.constant 1 : i64
+    %1 = arith.addi %0, %c1_i64 : i64
+    return %1 : i64
+  }
+  func.func @mul(%arg0: i64, %arg1: i64) -> i64 {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = arith.shrsi %arg0, %c1_i64 : i64
+    %1 = arith.subi %arg1, %c1_i64 : i64
+    %2 = arith.muli %0, %1 : i64
+    %3 = arith.addi %2, %c1_i64 : i64
+    return %3 : i64
+  }
+  func.func @div(%arg0: i64, %arg1: i64) -> i64 {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = arith.shrsi %arg0, %c1_i64 : i64
+    %1 = arith.shrsi %arg1, %c1_i64 : i64
+    %2 = arith.divsi %0, %1 : i64
+    %3 = arith.shli %2, %c1_i64 : i64
+    %4 = arith.ori %3, %c1_i64 : i64
+    return %4 : i64
+  }
+  func.func @modulo(%arg0: i64, %arg1: i64) -> i64 {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = arith.shrsi %arg0, %c1_i64 : i64
+    %1 = arith.shrsi %arg1, %c1_i64 : i64
+    %2 = arith.remsi %0, %1 : i64
+    %3 = arith.shli %2, %c1_i64 : i64
+    %4 = arith.ori %3, %c1_i64 : i64
+    return %4 : i64
+  }
+  func.func @cmp_slt(%arg0: i64, %arg1: i64) -> i1 {
+    %0 = arith.cmpi slt, %arg0, %arg1 : i64
+    return %0 : i1
+  }
+}
+
