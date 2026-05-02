@@ -19,7 +19,6 @@
   (:standard
    (:include %{project_root}/ocamlopt_flags.sexp)
    -O3))
- (modules_without_implementation direct frontend through_mlir types)
  (libraries
   ocamlcommon
   ocamlbytecomp

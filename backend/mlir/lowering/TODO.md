@@ -1,0 +1,1 @@
+- Currently, we still pass through the regular lambda pipeline, to generate .cmx files. This means that we generate a .o file with lambda, then replace it with our llvm-based output.This means that we generate a .o file with lambda, then replace it with our llvm-based output.

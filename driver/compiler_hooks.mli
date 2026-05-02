@@ -42,7 +42,7 @@ type _ pass =
 
   | Inlining_tree : Flambda2_simplify_shared.Inlining_report.Inlining_tree.t pass
   | Check_allocations : Zero_alloc_checker.iter_witnesses pass
-  | Mlirize : (string * Typedtree.implementation * Format.formatter) pass
+  | Mlirize : (string * string * Typedtree.implementation * Format.formatter) pass
 
 (* Register a new hook for [pass]. *)
 val register : 'a pass -> ('a -> unit) -> unit

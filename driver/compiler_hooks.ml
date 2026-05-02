@@ -29,7 +29,7 @@ type _ pass =
 
   | Inlining_tree : Flambda2_simplify_shared.Inlining_report.Inlining_tree.t pass
   | Check_allocations : Zero_alloc_checker.iter_witnesses pass
-  | Mlirize : (string * Typedtree.implementation * Format.formatter) pass
+  | Mlirize : (string * string * Typedtree.implementation * Format.formatter) pass
 
 type t = {
   mutable parse_tree_intf : (Parsetree.signature -> unit) list;
@@ -48,7 +48,7 @@ type t = {
   mutable cmm : (Cmm.phrase list -> unit) list;
   mutable inlining_tree : (Flambda2_simplify_shared.Inlining_report.Inlining_tree.t -> unit) list;
   mutable check_allocations : (Zero_alloc_checker.iter_witnesses -> unit) list;
-  mutable mlirize : ((string * Typedtree.implementation * Format.formatter) -> unit) list
+  mutable mlirize : ((string * string * Typedtree.implementation * Format.formatter) -> unit) list
 }
 let hooks : t = {
   parse_tree_intf = [];

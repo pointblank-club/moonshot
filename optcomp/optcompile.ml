@@ -172,16 +172,6 @@ module Make (Backend : Optcomp_intf.Backend) : S = struct
       let backend info
           (({ structure; coercion; argument_interface; _ } :
              Typedtree.implementation) as impl) =
-        if !Clflags.mlir_backend
-        then begin
-          let module_name =
-            Compilation_unit.Name.to_string
-              (Compilation_unit.name info.module_name)
-          in
-          Compiler_hooks.execute Compiler_hooks.Mlirize
-            (module_name, impl, info.ppf_dump);
-          raise (Compenv.Exit_with_status 0)
-        end;
         let argument_coercion =
           match argument_interface with
           | Some { ai_coercion_from_primary; ai_signature = _ } ->
@@ -194,7 +184,16 @@ module Make (Backend : Optcomp_intf.Backend) : S = struct
           |> Option.map Global_module.Parameter_name.of_string
         in
         if not (Config.flambda || Config.flambda2) then Clflags.set_oclassic ();
-        compile_from_typed info typed ~as_arg_for ~keep_symbol_tables
+        compile_from_typed info typed ~as_arg_for ~keep_symbol_tables;
+        if !Clflags.mlir_backend
+        then begin
+          let module_name =
+            Compilation_unit.Name.to_string
+              (Compilation_unit.name info.module_name)
+          in
+          Compiler_hooks.execute Compiler_hooks.Mlirize
+            (module_name, output_prefix, impl, info.ppf_dump)
+        end
       in
       Compile_common.implementation
         ~hook_parse_tree:(Compiler_hooks.execute Compiler_hooks.Parse_tree_impl)

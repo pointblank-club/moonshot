@@ -61,6 +61,7 @@
 
 (copy_files# backend/*.ml{,i})
 (copy_files# backend/mlir/*.ml{,i})
+(copy_files# backend/mlir/lowering/*.ml{,i})
 
 (copy_files# "backend/%{env:ARCH=amd64}/*.ml{,i}")
 
@@ -788,7 +789,7 @@
   omlir)
  (ocamlopt_flags
   (:standard -I +unix unix.cmxa -I +threads threads.cmxa -I %{env:OPAM_SWITCH_PREFIX=}/lib/integers -I %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes -I %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes-foreign %{env:OPAM_SWITCH_PREFIX=}/lib/integers/integers.cmxa %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes/ctypes.cmxa %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes-foreign/ctypes_foreign.cmxa))
- (modules mlirize oxcaml_main))
+ (modules mlirize through_mlir llvm_emitter oxcaml_main))
 
 (rule
  (targets oxcaml_main_native.ml)
@@ -812,7 +813,7 @@
   omlir)
  (ocamlopt_flags
   (:standard -runtime-variant nnp -I +unix unix.cmxa -I +threads threads.cmxa -I %{env:OPAM_SWITCH_PREFIX=}/lib/integers -I %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes -I %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes-foreign %{env:OPAM_SWITCH_PREFIX=}/lib/integers/integers.cmxa %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes/ctypes.cmxa %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes-foreign/ctypes_foreign.cmxa))
- (modules mlirize oxcaml_main_native))
+ (modules mlirize through_mlir llvm_emitter oxcaml_main_native))
 
 ; CR sdolan: Could be faster if it was closure-only?
 
@@ -833,7 +834,7 @@
   omlir)
  (ocamlopt_flags
   (:standard -I +unix unix.cmxa -I +threads threads.cmxa -I %{env:OPAM_SWITCH_PREFIX=}/lib/integers -I %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes -I %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes-foreign %{env:OPAM_SWITCH_PREFIX=}/lib/integers/integers.cmxa %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes/ctypes.cmxa %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes-foreign/ctypes_foreign.cmxa))
- (modules mlirize boot_ocamlopt))
+ (modules mlirize through_mlir llvm_emitter boot_ocamlopt))
 
 ; The input archives (.a, .cma and .cmxa) to the following three rules
 ; must be kept in sync with each other and in a topological order.

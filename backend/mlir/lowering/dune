@@ -1,0 +1,6 @@
+(include_subdirs no)
+(library
+ (name mlir_lowering)
+ (libraries ocamlcommon ocamloptcomp ocamlbytecomp omlir)
+ (modules through_mlir direct llvm_emitter)
+ (modules_without_implementation direct))

@@ -1,0 +1,6 @@
+(include_subdirs no)
+(library
+ (name mlir_dialect)
+ (modules types)
+ (modules_without_implementation types)
+ (libraries ocamlcommon ocamloptcomp ocamlbytecomp omlir))
