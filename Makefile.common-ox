@@ -152,7 +152,7 @@ runtest-llvmize: compiler
 	RUNTIME_DIR=$(RUNTIME_DIR) OXCAML_NAME_MANGLING=$(NAME_MANGLING_SCHEME) $(dune) build @runtest-llvmize $(ws_main)
 
 runtest-mlirize: boot-compiler mlir-dialect mlir-dialect-test
-	@for t in empty comparisons arithmetic; do \
+	@for t in empty comparisons arithmetic floats let_bindings; do \
 	  _build/_bootinstall/bin/ocamlopt.opt -nostdlib -nopervasives -mlir-backend \
 	    -c oxcaml/tests/backend/mlirize/$$t.ml 2>&1 \
 	  | diff oxcaml/tests/backend/mlirize/$$t.expected - >/dev/null \

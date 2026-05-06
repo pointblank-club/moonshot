@@ -91,4 +91,53 @@ def OCaml_CmpIOp : OCaml_Op<"cmpi", [Pure]> {
   let assemblyFormat = "$predicate `,` $lhs `,` $rhs attr-dict `:` type($lhs)";
 }
 
+def OCaml_CmpFPredicateAttr : I64EnumAttr<
+    "CmpFPredicate", "OCaml ordered float comparison predicate", [
+      I64EnumAttrCase<"oeq", 0, "oeq">,
+      I64EnumAttrCase<"ogt", 1, "ogt">,
+      I64EnumAttrCase<"oge", 2, "oge">,
+      I64EnumAttrCase<"olt", 3, "olt">,
+      I64EnumAttrCase<"ole", 4, "ole">,
+      I64EnumAttrCase<"one", 5, "one">,
+    ]> {
+  let cppNamespace = "::ocaml";
+}
+
+class OCaml_BinFloatOp<string mnemonic_>
+    : OCaml_Op<mnemonic_, [Pure, SameOperandsAndResultType]> {
+  let arguments = (ins F64:$lhs, F64:$rhs);
+  let results = (outs F64:$result);
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($result)";
+}
+
+def OCaml_AddFOp : OCaml_BinFloatOp<"addf"> {
+  let summary = "OCaml unboxed float addition";
+}
+
+def OCaml_SubFOp : OCaml_BinFloatOp<"subf"> {
+  let summary = "OCaml unboxed float subtraction";
+}
+
+def OCaml_MulFOp : OCaml_BinFloatOp<"mulf"> {
+  let summary = "OCaml unboxed float multiplication";
+}
+
+def OCaml_DivFOp : OCaml_BinFloatOp<"divf"> {
+  let summary = "OCaml unboxed float division";
+}
+
+def OCaml_CmpFOp : OCaml_Op<"cmpf", [Pure]> {
+  let summary = "OCaml ordered float comparison";
+  let description = [{
+    OCaml's `=`/`<>`/`<`/`<=`/`>`/`>=` on `float` follow IEEE *ordered*
+    semantics (NaN compares unequal to anything). Lowers directly to
+    `arith.cmpf` with the corresponding `O*` predicate.
+  }];
+  let arguments = (ins OCaml_CmpFPredicateAttr:$predicate,
+                       F64:$lhs,
+                       F64:$rhs);
+  let results = (outs I1:$result);
+  let assemblyFormat = "$predicate `,` $lhs `,` $rhs attr-dict `:` type($lhs)";
+}
+
 #endif

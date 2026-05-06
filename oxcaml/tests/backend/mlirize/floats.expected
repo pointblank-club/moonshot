@@ -1,0 +1,63 @@
+Compiling module Floats to MLIR
+// high-level MLIR
+module {
+  llvm.mlir.global @camlFloats__gc_roots() {addr_space = 0 : i32} : i64 {
+    %0 = llvm.mlir.constant(0 : i64) : i64
+    llvm.return %0 : i64
+  }
+  llvm.mlir.global @camlFloats__data_begin() {addr_space = 0 : i32} : i64 {
+    %0 = llvm.mlir.constant(0 : i64) : i64
+    llvm.return %0 : i64
+  }
+  llvm.mlir.global @camlFloats__data_end() {addr_space = 0 : i32} : i64 {
+    %0 = llvm.mlir.constant(0 : i64) : i64
+    llvm.return %0 : i64
+  }
+  llvm.mlir.global @camlFloats__code_begin() {addr_space = 0 : i32} : i64 {
+    %0 = llvm.mlir.constant(0 : i64) : i64
+    llvm.return %0 : i64
+  }
+  llvm.mlir.global @camlFloats__code_end() {addr_space = 0 : i32} : i64 {
+    %0 = llvm.mlir.constant(0 : i64) : i64
+    llvm.return %0 : i64
+  }
+  llvm.mlir.global @camlFloats__frametable() {addr_space = 0 : i32} : i64 {
+    %0 = llvm.mlir.constant(0 : i64) : i64
+    llvm.return %0 : i64
+  }
+  func.func @camlFloats__entry() -> i64 {
+    %v0 = arith.constant 1.5 : f64
+    %v1 = arith.constant 2.5 : f64
+    %v2 = ocaml.addf %v0, %v1 : f64
+    %v3 = arith.constant 5.0 : f64
+    %v4 = arith.constant 3.0 : f64
+    %v5 = ocaml.subf %v3, %v4 : f64
+    %v6 = arith.constant 2.0 : f64
+    %v7 = arith.constant 4.0 : f64
+    %v8 = ocaml.mulf %v6, %v7 : f64
+    %v9 = arith.constant 10.0 : f64
+    %v10 = arith.constant 4.0 : f64
+    %v11 = ocaml.divf %v9, %v10 : f64
+    %v12 = arith.constant 1.0 : f64
+    %v13 = arith.constant 2.0 : f64
+    %v14 = ocaml.cmpf oeq, %v12, %v13 : f64
+    %v15 = arith.constant 1.0 : f64
+    %v16 = arith.constant 2.0 : f64
+    %v17 = ocaml.cmpf one, %v15, %v16 : f64
+    %v18 = arith.constant 1.0 : f64
+    %v19 = arith.constant 2.0 : f64
+    %v20 = ocaml.cmpf olt, %v18, %v19 : f64
+    %v21 = arith.constant 1.0 : f64
+    %v22 = arith.constant 2.0 : f64
+    %v23 = ocaml.cmpf ole, %v21, %v22 : f64
+    %v24 = arith.constant 1.0 : f64
+    %v25 = arith.constant 2.0 : f64
+    %v26 = ocaml.cmpf ogt, %v24, %v25 : f64
+    %v27 = arith.constant 1.0 : f64
+    %v28 = arith.constant 2.0 : f64
+    %v29 = ocaml.cmpf oge, %v27, %v28 : f64
+    %v30 = ocaml.constant 0
+    func.return %v30 : i64
+  }
+}
+Generated object file: oxcaml/tests/backend/mlirize/floats.o

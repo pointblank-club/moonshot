@@ -1,0 +1,57 @@
+Compiling module Comparisons to MLIR
+// high-level MLIR
+module {
+  llvm.mlir.global @camlComparisons__gc_roots() {addr_space = 0 : i32} : i64 {
+    %0 = llvm.mlir.constant(0 : i64) : i64
+    llvm.return %0 : i64
+  }
+  llvm.mlir.global @camlComparisons__data_begin() {addr_space = 0 : i32} : i64 {
+    %0 = llvm.mlir.constant(0 : i64) : i64
+    llvm.return %0 : i64
+  }
+  llvm.mlir.global @camlComparisons__data_end() {addr_space = 0 : i32} : i64 {
+    %0 = llvm.mlir.constant(0 : i64) : i64
+    llvm.return %0 : i64
+  }
+  llvm.mlir.global @camlComparisons__code_begin() {addr_space = 0 : i32} : i64 {
+    %0 = llvm.mlir.constant(0 : i64) : i64
+    llvm.return %0 : i64
+  }
+  llvm.mlir.global @camlComparisons__code_end() {addr_space = 0 : i32} : i64 {
+    %0 = llvm.mlir.constant(0 : i64) : i64
+    llvm.return %0 : i64
+  }
+  llvm.mlir.global @camlComparisons__frametable() {addr_space = 0 : i32} : i64 {
+    %0 = llvm.mlir.constant(0 : i64) : i64
+    llvm.return %0 : i64
+  }
+  func.func @camlComparisons__entry() -> i64 {
+    %v0 = ocaml.constant 1
+    %v1 = ocaml.constant 2
+    %v2 = ocaml.cmpi eq, %v0, %v1 : i64
+    %v3 = ocaml.constant 1
+    %v4 = ocaml.constant 2
+    %v5 = ocaml.cmpi ne, %v3, %v4 : i64
+    %v6 = ocaml.constant 1
+    %v7 = ocaml.constant 2
+    %v8 = ocaml.cmpi slt, %v6, %v7 : i64
+    %v9 = ocaml.constant 1
+    %v10 = ocaml.constant 2
+    %v11 = ocaml.cmpi sle, %v9, %v10 : i64
+    %v12 = ocaml.constant 1
+    %v13 = ocaml.constant 2
+    %v14 = ocaml.cmpi sgt, %v12, %v13 : i64
+    %v15 = ocaml.constant 1
+    %v16 = ocaml.constant 2
+    %v17 = ocaml.cmpi sge, %v15, %v16 : i64
+    %v18 = ocaml.constant 1
+    %v19 = ocaml.constant 2
+    %v20 = ocaml.cmpi eq, %v18, %v19 : i64
+    %v21 = ocaml.constant 1
+    %v22 = ocaml.constant 2
+    %v23 = ocaml.cmpi ne, %v21, %v22 : i64
+    %v24 = ocaml.constant 0
+    func.return %v24 : i64
+  }
+}
+Generated object file: oxcaml/tests/backend/mlirize/comparisons.o

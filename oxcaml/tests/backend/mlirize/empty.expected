@@ -1,12 +1,33 @@
-// dialect: oxcaml_high
-module Empty {
-  // <0 functions>
+Compiling module Empty to MLIR
+// high-level MLIR
+module {
+  llvm.mlir.global @camlEmpty__gc_roots() {addr_space = 0 : i32} : i64 {
+    %0 = llvm.mlir.constant(0 : i64) : i64
+    llvm.return %0 : i64
+  }
+  llvm.mlir.global @camlEmpty__data_begin() {addr_space = 0 : i32} : i64 {
+    %0 = llvm.mlir.constant(0 : i64) : i64
+    llvm.return %0 : i64
+  }
+  llvm.mlir.global @camlEmpty__data_end() {addr_space = 0 : i32} : i64 {
+    %0 = llvm.mlir.constant(0 : i64) : i64
+    llvm.return %0 : i64
+  }
+  llvm.mlir.global @camlEmpty__code_begin() {addr_space = 0 : i32} : i64 {
+    %0 = llvm.mlir.constant(0 : i64) : i64
+    llvm.return %0 : i64
+  }
+  llvm.mlir.global @camlEmpty__code_end() {addr_space = 0 : i32} : i64 {
+    %0 = llvm.mlir.constant(0 : i64) : i64
+    llvm.return %0 : i64
+  }
+  llvm.mlir.global @camlEmpty__frametable() {addr_space = 0 : i32} : i64 {
+    %0 = llvm.mlir.constant(0 : i64) : i64
+    llvm.return %0 : i64
+  }
+  func.func @camlEmpty__entry() -> i64 {
+    %v0 = ocaml.constant 0
+    func.return %v0 : i64
+  }
 }
-// dialect: oxcaml_mid
-module Empty {
-  // <0 functions, 0 data items>
-}
-// dialect: llvm
-module Empty {
-
-}
+Generated object file: oxcaml/tests/backend/mlirize/empty.o

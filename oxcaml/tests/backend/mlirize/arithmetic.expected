@@ -1,0 +1,48 @@
+Compiling module Arithmetic to MLIR
+// high-level MLIR
+module {
+  llvm.mlir.global @camlArithmetic__gc_roots() {addr_space = 0 : i32} : i64 {
+    %0 = llvm.mlir.constant(0 : i64) : i64
+    llvm.return %0 : i64
+  }
+  llvm.mlir.global @camlArithmetic__data_begin() {addr_space = 0 : i32} : i64 {
+    %0 = llvm.mlir.constant(0 : i64) : i64
+    llvm.return %0 : i64
+  }
+  llvm.mlir.global @camlArithmetic__data_end() {addr_space = 0 : i32} : i64 {
+    %0 = llvm.mlir.constant(0 : i64) : i64
+    llvm.return %0 : i64
+  }
+  llvm.mlir.global @camlArithmetic__code_begin() {addr_space = 0 : i32} : i64 {
+    %0 = llvm.mlir.constant(0 : i64) : i64
+    llvm.return %0 : i64
+  }
+  llvm.mlir.global @camlArithmetic__code_end() {addr_space = 0 : i32} : i64 {
+    %0 = llvm.mlir.constant(0 : i64) : i64
+    llvm.return %0 : i64
+  }
+  llvm.mlir.global @camlArithmetic__frametable() {addr_space = 0 : i32} : i64 {
+    %0 = llvm.mlir.constant(0 : i64) : i64
+    llvm.return %0 : i64
+  }
+  func.func @camlArithmetic__entry() -> i64 {
+    %v0 = ocaml.constant 1
+    %v1 = ocaml.constant 2
+    %v2 = ocaml.addi %v0, %v1 : i64
+    %v3 = ocaml.constant 7
+    %v4 = ocaml.constant 3
+    %v5 = ocaml.subi %v3, %v4 : i64
+    %v6 = ocaml.constant 4
+    %v7 = ocaml.constant 5
+    %v8 = ocaml.muli %v6, %v7 : i64
+    %v9 = ocaml.constant 20
+    %v10 = ocaml.constant 4
+    %v11 = ocaml.divi %v9, %v10 : i64
+    %v12 = ocaml.constant 17
+    %v13 = ocaml.constant 5
+    %v14 = ocaml.modi %v12, %v13 : i64
+    %v15 = ocaml.constant 0
+    func.return %v15 : i64
+  }
+}
+Generated object file: oxcaml/tests/backend/mlirize/arithmetic.o

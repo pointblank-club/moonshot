@@ -789,7 +789,7 @@
   omlir)
  (ocamlopt_flags
   (:standard -I +unix unix.cmxa -I +threads threads.cmxa -I %{env:OPAM_SWITCH_PREFIX=}/lib/integers -I %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes -I %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes-foreign %{env:OPAM_SWITCH_PREFIX=}/lib/integers/integers.cmxa %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes/ctypes.cmxa %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes-foreign/ctypes_foreign.cmxa))
- (modules mlirize through_mlir llvm_emitter oxcaml_main))
+ (modules mlirize translate through_mlir llvm_emitter oxcaml_main))
 
 (rule
  (targets oxcaml_main_native.ml)
@@ -813,7 +813,7 @@
   omlir)
  (ocamlopt_flags
   (:standard -runtime-variant nnp -I +unix unix.cmxa -I +threads threads.cmxa -I %{env:OPAM_SWITCH_PREFIX=}/lib/integers -I %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes -I %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes-foreign %{env:OPAM_SWITCH_PREFIX=}/lib/integers/integers.cmxa %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes/ctypes.cmxa %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes-foreign/ctypes_foreign.cmxa))
- (modules mlirize through_mlir llvm_emitter oxcaml_main_native))
+ (modules mlirize translate through_mlir llvm_emitter oxcaml_main_native))
 
 ; CR sdolan: Could be faster if it was closure-only?
 
@@ -834,7 +834,7 @@
   omlir)
  (ocamlopt_flags
   (:standard -I +unix unix.cmxa -I +threads threads.cmxa -I %{env:OPAM_SWITCH_PREFIX=}/lib/integers -I %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes -I %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes-foreign %{env:OPAM_SWITCH_PREFIX=}/lib/integers/integers.cmxa %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes/ctypes.cmxa %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes-foreign/ctypes_foreign.cmxa))
- (modules mlirize through_mlir llvm_emitter boot_ocamlopt))
+ (modules mlirize translate through_mlir llvm_emitter boot_ocamlopt))
 
 ; The input archives (.a, .cma and .cmxa) to the following three rules
 ; must be kept in sync with each other and in a topological order.

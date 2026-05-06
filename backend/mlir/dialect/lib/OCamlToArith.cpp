@@ -118,13 +118,69 @@ struct CmpILowering : OpRewritePattern<::ocaml::CmpIOp> {
   }
 };
 
+struct AddFLowering : OpRewritePattern<::ocaml::AddFOp> {
+  using OpRewritePattern::OpRewritePattern;
+  LogicalResult matchAndRewrite(::ocaml::AddFOp op,
+                                PatternRewriter &r) const final {
+    r.replaceOpWithNewOp<arith::AddFOp>(op, op.getLhs(), op.getRhs());
+    return success();
+  }
+};
+
+struct SubFLowering : OpRewritePattern<::ocaml::SubFOp> {
+  using OpRewritePattern::OpRewritePattern;
+  LogicalResult matchAndRewrite(::ocaml::SubFOp op,
+                                PatternRewriter &r) const final {
+    r.replaceOpWithNewOp<arith::SubFOp>(op, op.getLhs(), op.getRhs());
+    return success();
+  }
+};
+
+struct MulFLowering : OpRewritePattern<::ocaml::MulFOp> {
+  using OpRewritePattern::OpRewritePattern;
+  LogicalResult matchAndRewrite(::ocaml::MulFOp op,
+                                PatternRewriter &r) const final {
+    r.replaceOpWithNewOp<arith::MulFOp>(op, op.getLhs(), op.getRhs());
+    return success();
+  }
+};
+
+struct DivFLowering : OpRewritePattern<::ocaml::DivFOp> {
+  using OpRewritePattern::OpRewritePattern;
+  LogicalResult matchAndRewrite(::ocaml::DivFOp op,
+                                PatternRewriter &r) const final {
+    r.replaceOpWithNewOp<arith::DivFOp>(op, op.getLhs(), op.getRhs());
+    return success();
+  }
+};
+
+struct CmpFLowering : OpRewritePattern<::ocaml::CmpFOp> {
+  using OpRewritePattern::OpRewritePattern;
+  LogicalResult matchAndRewrite(::ocaml::CmpFOp op,
+                                PatternRewriter &r) const final {
+    arith::CmpFPredicate pred = arith::CmpFPredicate::OEQ;
+    switch (op.getPredicate()) {
+    case ::ocaml::CmpFPredicate::oeq: pred = arith::CmpFPredicate::OEQ; break;
+    case ::ocaml::CmpFPredicate::ogt: pred = arith::CmpFPredicate::OGT; break;
+    case ::ocaml::CmpFPredicate::oge: pred = arith::CmpFPredicate::OGE; break;
+    case ::ocaml::CmpFPredicate::olt: pred = arith::CmpFPredicate::OLT; break;
+    case ::ocaml::CmpFPredicate::ole: pred = arith::CmpFPredicate::OLE; break;
+    case ::ocaml::CmpFPredicate::one: pred = arith::CmpFPredicate::ONE; break;
+    }
+    r.replaceOpWithNewOp<arith::CmpFOp>(op, pred, op.getLhs(), op.getRhs());
+    return success();
+  }
+};
+
 struct ConvertOCamlToArith
     : public ::ocaml::impl::ConvertOCamlToArithBase<ConvertOCamlToArith> {
   void runOnOperation() override {
     auto *ctx = &getContext();
     RewritePatternSet patterns(ctx);
     patterns.add<ConstantLowering, AddILowering, SubILowering, MulILowering,
-                 DivILowering, ModILowering, CmpILowering>(ctx);
+                 DivILowering, ModILowering, CmpILowering,
+                 AddFLowering, SubFLowering, MulFLowering, DivFLowering,
+                 CmpFLowering>(ctx);
 
     ConversionTarget target(*ctx);
     target.addLegalDialect<arith::ArithDialect>();
