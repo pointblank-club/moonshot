@@ -1,25 +1,22 @@
 #include "OCaml/OCamlDialect.h"
 #include "OCaml/Passes.h"
 
+#include "mlir/CAPI/IR.h" // Needed for unwrap/wrap of MLIR C-API types
 #include "mlir/Conversion/Passes.h"
-#include "mlir/InitAllDialects.h"
-#include "mlir/InitAllExtensions.h"
-#include "mlir/InitAllPasses.h"
 #include "mlir/IR/BuiltinOps.h"
+#include "mlir/InitAllDialects.h"
 #include "mlir/Parser/Parser.h"
 #include "mlir/Pass/PassManager.h"
-#include "mlir/Target/LLVMIR/Dialect/All.h"
 #include "mlir/Target/LLVMIR/Export.h"
-#include "mlir/CAPI/IR.h" // Needed for unwrap/wrap of MLIR C-API types
-#include "llvm/Support/raw_ostream.h"
+#include "llvm/IR/LegacyPassManager.h"
+#include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/TargetSelect.h"
-#include "llvm/MC/TargetRegistry.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
-#include "llvm/IR/LegacyPassManager.h"
-#include "llvm/TargetParser/Triple.h"
 #include "llvm/TargetParser/Host.h"
+#include "llvm/TargetParser/Triple.h"
 
 #include <optional>
 
@@ -32,7 +29,7 @@
 extern "C" {
 CAMLprim value mlirContextRegisterOCamlDialect(value v_ctx_ptr) {
   CAMLparam1(v_ctx_ptr);
-  MlirContext c_ctx = { (void*)Nativeint_val(v_ctx_ptr) };
+  MlirContext c_ctx = {(void *)Nativeint_val(v_ctx_ptr)};
   mlir::MLIRContext *context = unwrap(c_ctx);
   context->getOrLoadDialect<ocaml::OCamlDialect>();
   CAMLreturn(Val_unit);
@@ -47,8 +44,8 @@ CAMLprim value OcamlLoweringInit(value v_ctx_ptr, value v_op_ptr,
   llvm::InitializeNativeTargetAsmPrinter();
   llvm::InitializeNativeTargetAsmParser();
 
-  MlirContext c_ctx = { (void*)Nativeint_val(v_ctx_ptr) };
-  MlirOperation c_op = { (void*)Nativeint_val(v_op_ptr) };
+  MlirContext c_ctx = {(void *)Nativeint_val(v_ctx_ptr)};
+  MlirOperation c_op = {(void *)Nativeint_val(v_op_ptr)};
 
   mlir::MLIRContext *context = unwrap(c_ctx);
   mlir::Operation *top = unwrap(c_op);
@@ -95,12 +92,15 @@ CAMLprim value OcamlLoweringInit(value v_ctx_ptr, value v_op_ptr,
     caml_failwith("Failed to translate MLIR to LLVM IR");
   }
 
-  std::string triple = llvm::sys::getDefaultTargetTriple();
-  llvm_mod->setTargetTriple(llvm::Triple(triple));
+  std::string tripleStr = llvm::sys::getDefaultTargetTriple();
+  llvm::Triple triple(tripleStr);
+
+  llvm_mod->setTargetTriple(triple);
 
   std::string error;
   const llvm::Target *target =
-      llvm::TargetRegistry::lookupTarget(triple, error);
+      llvm::TargetRegistry::lookupTarget("", triple, error);
+
   if (!target) {
     caml_failwith(error.c_str());
   }
@@ -116,8 +116,8 @@ CAMLprim value OcamlLoweringInit(value v_ctx_ptr, value v_op_ptr,
 
   // 2. Write the lowered standard MLIR to <prefix>_std.mlir
   std::string std_mlir_file = std::string(output_file);
-  if (std_mlir_file.size() >= 2
-      && std_mlir_file.substr(std_mlir_file.size() - 2) == ".o") {
+  if (std_mlir_file.size() >= 2 &&
+      std_mlir_file.substr(std_mlir_file.size() - 2) == ".o") {
     std_mlir_file =
         std_mlir_file.substr(0, std_mlir_file.size() - 2) + "_std.mlir";
   } else {
@@ -152,8 +152,8 @@ CAMLprim value OcamlLoweringInit(value v_ctx_ptr, value v_op_ptr,
   }
 
   llvm::legacy::PassManager pass;
-  if (target_machine->addPassesToEmitFile(
-          pass, dest, nullptr, llvm::CodeGenFileType::ObjectFile)) {
+  if (target_machine->addPassesToEmitFile(pass, dest, nullptr,
+                                          llvm::CodeGenFileType::ObjectFile)) {
     caml_failwith("LLVM target machine cannot emit an object file");
   }
 

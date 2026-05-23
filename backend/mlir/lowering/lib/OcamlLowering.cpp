@@ -1,9 +1,7 @@
 #include "OCaml/OCamlDialect.h"
-#include "OCaml/Passes.h"
 
-#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
-#include "mlir/Pass/Pass.h"
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Transforms/DialectConversion.h"
 
 namespace ocaml {
@@ -25,7 +23,8 @@ struct EntryOpLowering : public OpConversionPattern<ocaml::EntryOp> {
                   ConversionPatternRewriter &rewriter) const override {
     auto parent_module = op->getParentOfType<ocaml::ModuleOp>();
     if (!parent_module) {
-      return rewriter.notifyMatchFailure(op, "entry has no ocaml.module parent");
+      return rewriter.notifyMatchFailure(op,
+                                         "entry has no ocaml.module parent");
     }
 
     for (auto &block : op.getBody()) {
@@ -46,12 +45,12 @@ struct EntryOpLowering : public OpConversionPattern<ocaml::EntryOp> {
     auto voidType = LLVM::LLVMVoidType::get(op.getContext());
     auto funcType =
         LLVM::LLVMFunctionType::get(voidType, {}, /*isVarArg=*/false);
-    auto entryFunc = rewriter.create<LLVM::LLVMFuncOp>(
-        loc, entry_name, funcType, LLVM::Linkage::External);
+    auto entryFunc = LLVM::LLVMFuncOp::create(
+        rewriter, loc, entry_name, funcType, LLVM::Linkage::External);
 
     auto *block = rewriter.createBlock(&entryFunc.getBody());
     rewriter.setInsertionPointToStart(block);
-    rewriter.create<LLVM::ReturnOp>(loc, ValueRange{});
+    LLVM::ReturnOp::create(rewriter, loc, ValueRange{});
 
     rewriter.eraseOp(op);
     return success();
@@ -88,29 +87,18 @@ struct ModuleOpLowering : public OpConversionPattern<ocaml::ModuleOp> {
     auto i64Type = rewriter.getI64Type();
     auto zeroAttr = rewriter.getI64IntegerAttr(0);
 
-    rewriter.create<LLVM::GlobalOp>(
-        loc, i64Type, /*isConstant=*/false, LLVM::Linkage::External,
-        gc_roots_name, zeroAttr);
-
-    rewriter.create<LLVM::GlobalOp>(
-        loc, i64Type, /*isConstant=*/false, LLVM::Linkage::External,
-        data_begin_name, zeroAttr);
-
-    rewriter.create<LLVM::GlobalOp>(
-        loc, i64Type, /*isConstant=*/false, LLVM::Linkage::External,
-        data_end_name, zeroAttr);
-
-    rewriter.create<LLVM::GlobalOp>(
-        loc, i64Type, /*isConstant=*/false, LLVM::Linkage::External,
-        code_begin_name, zeroAttr);
-
-    rewriter.create<LLVM::GlobalOp>(
-        loc, i64Type, /*isConstant=*/false, LLVM::Linkage::External,
-        code_end_name, zeroAttr);
-
-    rewriter.create<LLVM::GlobalOp>(
-        loc, i64Type, /*isConstant=*/false, LLVM::Linkage::External,
-        frametable_name, zeroAttr);
+    LLVM::GlobalOp::create(rewriter, loc, i64Type, false,
+                           LLVM::Linkage::External, gc_roots_name, zeroAttr);
+    LLVM::GlobalOp::create(rewriter, loc, i64Type, false,
+                           LLVM::Linkage::External, data_begin_name, zeroAttr);
+    LLVM::GlobalOp::create(rewriter, loc, i64Type, false,
+                           LLVM::Linkage::External, data_end_name, zeroAttr);
+    LLVM::GlobalOp::create(rewriter, loc, i64Type, false,
+                           LLVM::Linkage::External, code_begin_name, zeroAttr);
+    LLVM::GlobalOp::create(rewriter, loc, i64Type, false,
+                           LLVM::Linkage::External, code_end_name, zeroAttr);
+    LLVM::GlobalOp::create(rewriter, loc, i64Type, false,
+                           LLVM::Linkage::External, frametable_name, zeroAttr);
 
     rewriter.eraseOp(op);
     return success();

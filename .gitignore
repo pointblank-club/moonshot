@@ -412,3 +412,5 @@ ocaml/primitives.new
 
 dune.runtime_selection
 /otherlibs/dune
+
+compile_commands.json
