@@ -34,3 +34,29 @@ def EntryOp : OCaml_Op<"entry", [
   let regions = (region AnyRegion:$body);
   let assemblyFormat = "attr-dict-with-keyword $body";
 }
+
+def ExternOp : OCaml_Op<"extern", [
+    Symbol
+]> {
+  let summary = "An OCaml external declaration";
+  let arguments = (ins SymbolNameAttr:$sym_name,
+                       TypeAttrOf<FunctionType>:$function_type,
+                       StrAttr:$target);
+  let assemblyFormat = "$sym_name attr-dict `:` $function_type";
+}
+
+def StringOp : OCaml_Op<"string"> {
+  let summary = "An OCaml string literal";
+  let arguments = (ins StrAttr:$value);
+  let results = (outs AnyType:$result);
+  let assemblyFormat = "$value attr-dict `:` type($result)";
+}
+
+def ExternCallOp : OCaml_Op<"extern_call"> {
+  let summary = "A call to an OCaml external";
+  let arguments = (ins SymbolRefAttr:$callee,
+                       Variadic<AnyType>:$args,
+                       TypeAttrOf<FunctionType>:$callee_type);
+  let assemblyFormat =
+      "$callee `(` $args `:` type($args) `)` attr-dict `:` $callee_type";
+}
