@@ -1,6 +1,0 @@
-(include_subdirs no)
-(library
- (name mlir_frontend)
- (modules frontend)
- (modules_without_implementation frontend)
- (libraries ocamlcommon ocamloptcomp ocamlbytecomp omlir))

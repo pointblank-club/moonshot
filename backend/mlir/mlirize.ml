@@ -10,7 +10,7 @@
 
 let init () = ()
 
-let compile_from_typed = Through_mlir.compile_from_typed
+let compile_from_typed = Mlir.compile_from_typed
 
 let () =
   Compiler_hooks.register Mlirize

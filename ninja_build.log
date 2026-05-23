@@ -1,0 +1,115 @@
+ninja: Entering directory `_build/mlir-dialect'
+[1/3] Building CXX object lib/CMakeFiles/obj.MLIROCaml.dir/OCamlToArith.cpp.o
+FAILED: [code=1] lib/CMakeFiles/obj.MLIROCaml.dir/OCamlToArith.cpp.o 
+/usr/bin/c++ -D_GLIBCXX_USE_CXX11_ABI=1 -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -I/home/vishr/Dev/moonshot/backend/mlir/lowering/dialect/include -I/home/vishr/Dev/moonshot/_build/mlir-dialect/include -I/usr/lib/ocaml -fPIC -fno-semantic-interposition -fvisibility-inlines-hidden -Werror=date-time -Wall -Wextra -Wno-unused-parameter -Wwrite-strings -Wcast-qual -Wno-missing-field-initializers -Wimplicit-fallthrough -Wno-nonnull -Wno-class-memaccess -Wno-dangling-reference -Wno-redundant-move -Wno-pessimizing-move -Wno-array-bounds -Wno-stringop-overread -Wno-noexcept-type -Wdelete-non-virtual-dtor -Wsuggest-override -Wno-comment -Wno-misleading-indentation -Wctad-maybe-unsupported -fdiagnostics-color -ffunction-sections -fdata-sections -O3 -DNDEBUG -std=c++17 -fno-exceptions -funwind-tables -MD -MT lib/CMakeFiles/obj.MLIROCaml.dir/OCamlToArith.cpp.o -MF lib/CMakeFiles/obj.MLIROCaml.dir/OCamlToArith.cpp.o.d -o lib/CMakeFiles/obj.MLIROCaml.dir/OCamlToArith.cpp.o -c /home/vishr/Dev/moonshot/backend/mlir/lowering/dialect/lib/OCamlToArith.cpp
+/home/vishr/Dev/moonshot/backend/mlir/lowering/dialect/lib/OCamlToArith.cpp: In member function ‘virtual llvm::LogicalResult {anonymous}::ModuleOpLowering::matchAndRewrite(ocaml::ModuleOp, mlir::OpConversionPattern<ocaml::ModuleOp>::OpAdaptor, mlir::ConversionPatternRewriter&) const’:
+/home/vishr/Dev/moonshot/backend/mlir/lowering/dialect/lib/OCamlToArith.cpp:60:72: error: ‘class std::__cxx11::basic_string<char>’ has no member named ‘str’
+   60 |     std::string gc_roots_name = ("caml" + sym_name_str + "__gc_roots").str();
+      |                                                                        ^~~
+/home/vishr/Dev/moonshot/backend/mlir/lowering/dialect/lib/OCamlToArith.cpp:61:76: error: ‘class std::__cxx11::basic_string<char>’ has no member named ‘str’
+   61 |     std::string data_begin_name = ("caml" + sym_name_str + "__data_begin").str();
+      |                                                                            ^~~
+/home/vishr/Dev/moonshot/backend/mlir/lowering/dialect/lib/OCamlToArith.cpp:62:72: error: ‘class std::__cxx11::basic_string<char>’ has no member named ‘str’
+   62 |     std::string data_end_name = ("caml" + sym_name_str + "__data_end").str();
+      |                                                                        ^~~
+/home/vishr/Dev/moonshot/backend/mlir/lowering/dialect/lib/OCamlToArith.cpp:63:76: error: ‘class std::__cxx11::basic_string<char>’ has no member named ‘str’
+   63 |     std::string code_begin_name = ("caml" + sym_name_str + "__code_begin").str();
+      |                                                                            ^~~
+/home/vishr/Dev/moonshot/backend/mlir/lowering/dialect/lib/OCamlToArith.cpp:64:72: error: ‘class std::__cxx11::basic_string<char>’ has no member named ‘str’
+   64 |     std::string code_end_name = ("caml" + sym_name_str + "__code_end").str();
+      |                                                                        ^~~
+/home/vishr/Dev/moonshot/backend/mlir/lowering/dialect/lib/OCamlToArith.cpp:65:76: error: ‘class std::__cxx11::basic_string<char>’ has no member named ‘str’
+   65 |     std::string frametable_name = ("caml" + sym_name_str + "__frametable").str();
+      |                                                                            ^~~
+/home/vishr/Dev/moonshot/backend/mlir/lowering/dialect/lib/OCamlToArith.cpp:66:66: error: ‘class std::__cxx11::basic_string<char>’ has no member named ‘str’
+   66 |     std::string entry_name = ("caml" + sym_name_str + "__entry").str();
+      |                                                                  ^~~
+/home/vishr/Dev/moonshot/backend/mlir/lowering/dialect/lib/OCamlToArith.cpp:73:36: warning: ‘OpTy mlir::OpBuilder::create(mlir::Location, Args&& ...) [with OpTy = mlir::LLVM::GlobalOp; Args = {mlir::IntegerType&, bool, mlir::LLVM::linkage::Linkage, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&, mlir::IntegerAttr&}]’ is deprecated: Use OpTy::create instead [-Wdeprecated-declarations]
+   73 |     rewriter.create<LLVM::GlobalOp>(
+      |     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+   74 |         loc, i64Type, /*isConstant=*/false, LLVM::Linkage::External,
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   75 |         gc_roots_name, zeroAttr);
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~    
+In file included from /usr/include/mlir/IR/PatternMatch.h:12,
+                 from /usr/include/mlir/Interfaces/MemorySlotInterfaces.h:14,
+                 from /usr/include/mlir/Dialect/LLVMIR/LLVMTypes.h:19,
+                 from /usr/include/mlir/Dialect/LLVMIR/LLVMAttrs.h:17,
+                 from /usr/include/mlir/Dialect/LLVMIR/LLVMDialect.h:18,
+                 from /home/vishr/Dev/moonshot/backend/mlir/lowering/dialect/lib/OCamlToArith.cpp:4:
+/usr/include/mlir/IR/Builders.h:506:8: note: declared here
+  506 |   OpTy create(Location location, Args &&...args) {
+      |        ^~~~~~
+/home/vishr/Dev/moonshot/backend/mlir/lowering/dialect/lib/OCamlToArith.cpp:77:36: warning: ‘OpTy mlir::OpBuilder::create(mlir::Location, Args&& ...) [with OpTy = mlir::LLVM::GlobalOp; Args = {mlir::IntegerType&, bool, mlir::LLVM::linkage::Linkage, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&, mlir::IntegerAttr&}]’ is deprecated: Use OpTy::create instead [-Wdeprecated-declarations]
+   77 |     rewriter.create<LLVM::GlobalOp>(
+      |     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+   78 |         loc, i64Type, /*isConstant=*/false, LLVM::Linkage::External,
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   79 |         data_begin_name, zeroAttr);
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~  
+/usr/include/mlir/IR/Builders.h:506:8: note: declared here
+  506 |   OpTy create(Location location, Args &&...args) {
+      |        ^~~~~~
+/home/vishr/Dev/moonshot/backend/mlir/lowering/dialect/lib/OCamlToArith.cpp:81:36: warning: ‘OpTy mlir::OpBuilder::create(mlir::Location, Args&& ...) [with OpTy = mlir::LLVM::GlobalOp; Args = {mlir::IntegerType&, bool, mlir::LLVM::linkage::Linkage, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&, mlir::IntegerAttr&}]’ is deprecated: Use OpTy::create instead [-Wdeprecated-declarations]
+   81 |     rewriter.create<LLVM::GlobalOp>(
+      |     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+   82 |         loc, i64Type, /*isConstant=*/false, LLVM::Linkage::External,
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   83 |         data_end_name, zeroAttr);
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~    
+/usr/include/mlir/IR/Builders.h:506:8: note: declared here
+  506 |   OpTy create(Location location, Args &&...args) {
+      |        ^~~~~~
+/home/vishr/Dev/moonshot/backend/mlir/lowering/dialect/lib/OCamlToArith.cpp:85:36: warning: ‘OpTy mlir::OpBuilder::create(mlir::Location, Args&& ...) [with OpTy = mlir::LLVM::GlobalOp; Args = {mlir::IntegerType&, bool, mlir::LLVM::linkage::Linkage, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&, mlir::IntegerAttr&}]’ is deprecated: Use OpTy::create instead [-Wdeprecated-declarations]
+   85 |     rewriter.create<LLVM::GlobalOp>(
+      |     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+   86 |         loc, i64Type, /*isConstant=*/false, LLVM::Linkage::External,
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   87 |         code_begin_name, zeroAttr);
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~  
+/usr/include/mlir/IR/Builders.h:506:8: note: declared here
+  506 |   OpTy create(Location location, Args &&...args) {
+      |        ^~~~~~
+/home/vishr/Dev/moonshot/backend/mlir/lowering/dialect/lib/OCamlToArith.cpp:89:36: warning: ‘OpTy mlir::OpBuilder::create(mlir::Location, Args&& ...) [with OpTy = mlir::LLVM::GlobalOp; Args = {mlir::IntegerType&, bool, mlir::LLVM::linkage::Linkage, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&, mlir::IntegerAttr&}]’ is deprecated: Use OpTy::create instead [-Wdeprecated-declarations]
+   89 |     rewriter.create<LLVM::GlobalOp>(
+      |     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+   90 |         loc, i64Type, /*isConstant=*/false, LLVM::Linkage::External,
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   91 |         code_end_name, zeroAttr);
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~    
+/usr/include/mlir/IR/Builders.h:506:8: note: declared here
+  506 |   OpTy create(Location location, Args &&...args) {
+      |        ^~~~~~
+/home/vishr/Dev/moonshot/backend/mlir/lowering/dialect/lib/OCamlToArith.cpp:93:36: warning: ‘OpTy mlir::OpBuilder::create(mlir::Location, Args&& ...) [with OpTy = mlir::LLVM::GlobalOp; Args = {mlir::IntegerType&, bool, mlir::LLVM::linkage::Linkage, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&, mlir::IntegerAttr&}]’ is deprecated: Use OpTy::create instead [-Wdeprecated-declarations]
+   93 |     rewriter.create<LLVM::GlobalOp>(
+      |     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+   94 |         loc, i64Type, /*isConstant=*/false, LLVM::Linkage::External,
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   95 |         frametable_name, zeroAttr);
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~  
+/usr/include/mlir/IR/Builders.h:506:8: note: declared here
+  506 |   OpTy create(Location location, Args &&...args) {
+      |        ^~~~~~
+/home/vishr/Dev/moonshot/backend/mlir/lowering/dialect/lib/OCamlToArith.cpp:99:55: warning: ‘OpTy mlir::OpBuilder::create(mlir::Location, Args&& ...) [with OpTy = mlir::LLVM::LLVMFuncOp; Args = {std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&, mlir::LLVM::LLVMFunctionType&, mlir::LLVM::linkage::Linkage}]’ is deprecated: Use OpTy::create instead [-Wdeprecated-declarations]
+   99 |     auto entryFunc = rewriter.create<LLVM::LLVMFuncOp>(
+      |                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+  100 |         loc, entry_name, funcType, LLVM::Linkage::External);
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/usr/include/mlir/IR/Builders.h:506:8: note: declared here
+  506 |   OpTy create(Location location, Args &&...args) {
+      |        ^~~~~~
+/home/vishr/Dev/moonshot/backend/mlir/lowering/dialect/lib/OCamlToArith.cpp:104:36: warning: ‘OpTy mlir::OpBuilder::create(mlir::Location, Args&& ...) [with OpTy = mlir::LLVM::ReturnOp; Args = {mlir::ValueRange}]’ is deprecated: Use OpTy::create instead [-Wdeprecated-declarations]
+  104 |     rewriter.create<LLVM::ReturnOp>(loc, ValueRange{});
+      |     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
+/usr/include/mlir/IR/Builders.h:506:8: note: declared here
+  506 |   OpTy create(Location location, Args &&...args) {
+      |        ^~~~~~
+/home/vishr/Dev/moonshot/backend/mlir/lowering/dialect/lib/OCamlToArith.cpp: In function ‘value OcamlLoweringInit(value, value, value)’:
+/home/vishr/Dev/moonshot/backend/mlir/lowering/dialect/lib/OCamlToArith.cpp:199:68: warning: ‘static const llvm::Target* llvm::TargetRegistry::lookupTarget(llvm::StringRef, std::string&)’ is deprecated: Use overload accepting Triple instead [-Wdeprecated-declarations]
+  199 |     const llvm::Target *target = llvm::TargetRegistry::lookupTarget(triple, error);
+      |                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~
+In file included from /home/vishr/Dev/moonshot/backend/mlir/lowering/dialect/lib/OCamlToArith.cpp:21:
+/usr/include/llvm/MC/TargetRegistry.h:742:24: note: declared here
+  742 |   static const Target *lookupTarget(StringRef TripleStr, std::string &Error) {
+      |                        ^~~~~~~~~~~~
+ninja: build stopped: subcommand failed.

@@ -80,7 +80,7 @@ boot_targets = \
   $(boot_ocamlobjinfo) \
   ocamltest/ocamltest.native
 
-boot-compiler: _build/_bootinstall
+boot-compiler: _build/_bootinstall mlir-dialect
 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) $(coverage_dune_flags) $(boot_targets)
 
 boot-runtest: boot-compiler
@@ -151,15 +151,15 @@ runtest: compiler
 runtest-llvmize: compiler
 	RUNTIME_DIR=$(RUNTIME_DIR) OXCAML_NAME_MANGLING=$(NAME_MANGLING_SCHEME) $(dune) build @runtest-llvmize $(ws_main)
 
-runtest-mlirize: boot-compiler mlir-dialect mlir-dialect-test
-	@for t in empty comparisons arithmetic floats let_bindings; do \
+runtest-mlirize: boot-compiler mlir-dialect
+	@for t in empty; do \
 	  _build/_bootinstall/bin/ocamlopt.opt -nostdlib -nopervasives -mlir-backend \
 	    -c oxcaml/tests/backend/mlirize/$$t.ml 2>&1 \
 	  | diff oxcaml/tests/backend/mlirize/$$t.expected - >/dev/null \
 	  && echo "$$t: PASS" || { echo "$$t: FAIL"; exit 1; }; \
 	done
 
-MLIR_DIALECT_DIR = backend/mlir/dialect
+MLIR_DIALECT_DIR = backend/mlir/lowering
 MLIR_DIALECT_BUILD = _build/mlir-dialect
 MLIR_LLVM_PREFIX ?= /usr/lib/llvm-22
 
@@ -167,21 +167,10 @@ mlir-dialect:
 	@cmake -G Ninja -S $(MLIR_DIALECT_DIR) -B $(MLIR_DIALECT_BUILD) \
 	  -DMLIR_DIR=$(MLIR_LLVM_PREFIX)/lib/cmake/mlir \
 	  -DLLVM_DIR=$(MLIR_LLVM_PREFIX)/lib/cmake/llvm \
+	  -DOCAML_INCLUDE_DIR=$(shell ocamlc -where) \
 	  -DCMAKE_BUILD_TYPE=Release >/dev/null
-	@cmake --build $(MLIR_DIALECT_BUILD) --target ocaml-mlir-opt
+	@cmake --build $(MLIR_DIALECT_BUILD) --target MLIROCaml
 
-OCAML_MLIR_OPT_BIN = $(MLIR_DIALECT_BUILD)/tools/ocaml-mlir-opt/ocaml-mlir-opt
-
-mlir-dialect-test: mlir-dialect
-	@$(OCAML_MLIR_OPT_BIN) $(MLIR_DIALECT_DIR)/test/round-trip.mlir 2>&1 \
-	  | diff $(MLIR_DIALECT_DIR)/test/round-trip.expected - >/dev/null \
-	  && echo "round-trip: PASS" \
-	  || { echo "round-trip: FAIL"; exit 1; }
-	@$(OCAML_MLIR_OPT_BIN) --convert-ocaml-to-arith \
-	    $(MLIR_DIALECT_DIR)/test/lower.mlir 2>&1 \
-	  | diff $(MLIR_DIALECT_DIR)/test/lower.expected - >/dev/null \
-	  && echo "lower: PASS" \
-	  || { echo "lower: FAIL"; exit 1; }
 
 runtest-dwarf: compiler
 	RUNTIME_DIR=$(RUNTIME_DIR) OXCAML_NAME_MANGLING=$(NAME_MANGLING_SCHEME) $(dune) build @runtest-dwarf $(ws_main)

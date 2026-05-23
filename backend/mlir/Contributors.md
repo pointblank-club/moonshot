@@ -214,41 +214,194 @@ What it explicitly rejects (with clear error messages):
 - `/usr/lib/llvm-22/bin/{mlir-opt,mlir-translate,clang}` — install
   via `apt install llvm-22-dev mlir-22-dev` on Debian/Ubuntu.
 
-## Build & test
+## Building locally — full setup for new contributors
+
+> The MLIR-enabled compiler does **not** build with a plain
+> `opam switch ... ; ./configure ; make -s`. It has an inherent bootstrap
+> circularity (explained at the end of this section). The build is a
+> multi-phase dance; it is scripted at **`scripts/build-mlir-backend.sh`**.
+> Run that one command and skip to *Build & test*. The manual breakdown
+> below documents what the script does and why, for when something needs
+> debugging.
+
+### What you need to clone
+
+| Repo | When | Notes |
+|---|---|---|
+| `pointblank-club/moonshot` (this repo) | always | branch with the MLIR backend (`fix/mlir-full-build`, or `comparison` once merged) |
+| `pointblank-club/mlir_ocaml_bindings` | always | provides `omlir` — the MLIR FFI bindings |
+| `devalgupta404/ocaml-ctypes` (branch `oxcaml-0.24.0`) | always | pulled by `opam pin`, no local clone needed |
+| `pointblank-club/ocaml_bindgen` | only to regenerate bindings | see "Working with the bindings" above |
+
+### System packages (Debian/Ubuntu)
+
+LLVM/MLIR **must be 22** — paths are hardcoded against `/usr/lib/llvm-22/`.
 
 ```bash
-# Activate an opam switch with OCaml 5.4 + ctypes + ctypes-foreign +
-# integers + menhir.20231231 installed (matching the OxCaml
-# bootstrap requirements).
+sudo apt install \
+  libmlir-22-dev llvm-22-dev mlir-22-tools \
+  libffi-dev pkg-config cmake ninja-build \
+  autoconf m4 build-essential opam rsync
+```
 
-# Build the boot compiler (this is the one that supports -mlir-backend)
-make -s boot-compiler
+### Version pins (must match exactly)
 
-# Run a single .ml through the pipeline
+| Component | Version | Why |
+|---|---|---|
+| OCaml base (bootstrap switch) | `5.4.0` | bootstrap source uses `Format.utf_8_scalar_width` (5.4-only). The compiler you *produce* reports `5.2.0+ox`. |
+| `menhir` | exactly `20231231` | newer menhir emits `MenhirLib.StaticVersion.require_20260209`, absent from OxCaml's vendored `CamlinternalMenhirLib`. Used only as a *binary*. |
+| `ctypes` / `ctypes-foreign` | `0.24.0` + OxCaml patch | from `devalgupta404/ocaml-ctypes#oxcaml-0.24.0`: eta-expands four `Bigarray.kind` cases for the `@ immutable` modality OxCaml's stdlib adds. |
+| `omlir` | `~dev` (path pin) | your local `mlir_ocaml_bindings` clone. |
+
+### Prerequisite
+
+The `otherlibs/{unix,systhreads}` library-rename **and** stub-name fixes
+must be committed on the branch (they are, on `fix/mlir-full-build`). A
+clean build reverts to committed source, so uncommitted local fixes are
+lost. The script guards on this.
+
+### One command
+
+```bash
+bash scripts/build-mlir-backend.sh
+```
+
+≈2–3 h, several `make -s` cycles, needs ≥8 GB free disk after a clean.
+On success it prints `exit code = 42` from a smoke test.
+
+### Why it's a dance, not a recipe
+
+The committed fix (renamed `unix`/`threads` + `OCAMLPATH`→opam) makes the
+main dune context resolve `unix`/`threads`/`ctypes`/`omlir` from the opam
+switch — so the switch must already host an OxCaml-magic (`Caml1999I577`)
+compiler **before** `make -s` can link. But producing that compiler needs
+a build. The script breaks the circle in phases:
+
+1. **Pre-fix bootstrap.** A *vanilla* `ocaml-base-compiler.5.4.0` switch;
+   revert the 8 fix-touched files to the pre-fix commit (conventional
+   `unix`/`threads`, no `OCAMLPATH`→opam) so `unix` resolves from the
+   in-build stdlib. `make -s` completes everything except the expected
+   `omlir` cmi-magic link. Assemble a consistent OxCaml `_install`.
+2. **A SEPARATE `--empty` target switch + flambda2 repo.** Creating it
+   with a real 5.4.0 compiler leaves a `5.4.0` invariant; `opam
+   custom-install` then tries to recompile `ocaml.5.4.0` against the
+   5.2.0+ox compiler → "OCaml version mismatch" → aborts. `--empty` has
+   no invariant; the flambda2 repo defines `ocaml-variants.5.2.0+oxcaml`.
+   `opam custom-install -n` (the `-n`/`--no-recompilations` is
+   essential — see pitfalls), then `opam install ocaml.5.2.0`,
+   fake-install + symlink the *vanilla* `dune`/`menhir` binaries (their
+   sources don't compile against OxCaml), then pin+install
+   `ctypes`/`ctypes-foreign`/`omlir` at I577.
+3. **Post-fix rebuild.** Restore the 8 files to HEAD, regenerate
+   `duneconf/*.ws` (so the `OCAMLPATH`→opam line is emitted — `make`
+   won't regenerate an existing `.ws`), clean `_build`, `make -s`. It
+   builds a fresh `runtime_stdlib` whose `CamlinternalFormatBasics`
+   interface differs from the v1 `_install` opam-`unix` was built
+   against, so it fails. Re-assemble `_install` from this post-fix
+   `_build` and re-`custom-install` so the switch stdlib == the post-fix
+   `runtime_stdlib`. `make -s` → EXIT 0.
+4. `make -s _install` ; `make mlir-dialect` (builds `ocaml-mlir-opt`,
+   the `--convert-ocaml-to-arith` tool, via cmake/ninja — separate from
+   `make -s`) ; smoke test.
+
+A fresh machine has no switch carrying the `opam-custom-install` plugin
+or the vanilla `dune`/`menhir` binaries the script symlinks. The script
+expects a "park" switch (default `moonshot-mlir`) providing those; on a
+brand-new box, create any vanilla `ocaml-base-compiler.5.4.0` switch and
+`opam install opam-custom-install dune menhir.20231231` there first, and
+point the script's `PARK=` at it.
+
+## Build & test
+
+Day-to-day loop once the full build has been done:
+
+```bash
+# Single-file compile through the pipeline (no link)
 _build/_bootinstall/bin/ocamlopt.opt -nostdlib -nopervasives \
   -mlir-backend -c <file>.ml
 
-# Run the in-tree tests
+# Full binary
+_install/bin/ocamlopt -mlir-backend mlir_demo.ml -o mlir_demo
+./mlir_demo
+
+# In-tree dialect + lowering tests
 make -s runtest-mlirize
 ```
 
-The `runtest-mlirize` target invokes the boot compiler directly (not
-the dune `@runtest-mlirize` alias) because the production `ocamlopt`
-currently no-ops on `-mlir-backend` — see *Known limitations* below.
-The dune alias rules in `oxcaml/tests/backend/mlirize/dune` remain in
-place for the day production gets the bindings; until then they're
-inert.
+`runtest-mlirize` invokes the boot compiler directly; it exercises MLIR
+text emission and `--convert-ocaml-to-arith` lowering on the cases in
+`oxcaml/tests/backend/mlirize/`.
 
-## Known limitations
+## Common pitfalls
 
-- **`-mlir-backend` only works in `boot_ocamlopt`**, not in the
-  installed `ocamlopt.opt`. Reason: opam's `ctypes.cmi` has the
-  system OCaml's magic (`Caml1999I036`) while moonshot's stdlib
-  uses `Caml1999I577`, so the bindings can't be linked into the
-  main-context compiler. Fix path: build ctypes against moonshot's
-  stdlib (vendor ctypes source or pin its opam build to moonshot's
-  compiler).
-- Therefore the `runtest-mlirize` Makefile target invokes the boot
-  compiler directly (the production compiler would silently no-op
-  on `-mlir-backend`).  The dune alias `@runtest-mlirize` exists
-  but is inert until production gets the bindings.
+These are the failure modes observed while validating the script with a
+full clean-from-scratch run:
+
+- **`opam custom-install` aborts with `OCaml version mismatch: 5.2.0,
+  expected 5.4.0`.** The target switch was created with a real
+  `ocaml-base-compiler.5.4.0` (leaving a `5.4.0` invariant) instead of
+  `--empty`. Create it `opam switch create <sw> --empty
+  --repositories=flambda2=git+https://github.com/ocaml-flambda/flambda2-opam.git,default`.
+- **`opam custom-install` recompiles `dune` and fails on `"with"
+  constraint … 'a : any separable`.** You omitted `-n`
+  (`--no-recompilations`). Re-custom-install on a populated switch
+  otherwise rebuilds every `[uses ocaml]` package incl. `dune 3.22.2`,
+  which doesn't compile against OxCaml. The explicit
+  `opam install ctypes ctypes-foreign omlir` afterwards still rebuilds
+  those against the new stdlib.
+- **`opam custom-install -n` rolled back ("former state can be
+  restored") and the switch has no stdlib.** Expected on the *second*
+  custom-install (populated switch); just run it again — it lands on the
+  retry. The script loops up to 3× checking
+  `$switch/lib/ocaml/stdlib.cmi == Caml1999I577`.
+- **`Library "unix" not found` (ocamldoc / ocaml-jit) after restoring
+  post-fix source.** `duneconf/main.ws` is stale — `make` won't
+  regenerate an existing `.ws`, so the `OCAMLPATH`→opam line never got
+  emitted. `rm -f duneconf/*.ws` then `make -s`.
+- **`make inconsistent assumptions over interface
+  "CamlinternalFormatBasics"`** between opam-`unix` and
+  `runtime_stdlib`. Generation skew: the opam compiler's stdlib differs
+  from the post-fix `_build`'s `runtime_stdlib`. Re-assemble `_install`
+  from the *post-fix* `_build` and re-`custom-install` so they match.
+- **`cannot find -locaml_unix_internal_stubs` /
+  `dllocaml_threads_byte_internal_stubs.so: No such file or directory`.**
+  The stub-name fix isn't committed (see *Background*). It must be on
+  HEAD before the clean run.
+- **`menhir`/`require_20260209` mismatch** — `menhir.20231231` exactly.
+  It is consumed only as a binary, so fake-install + symlink the vanilla
+  one; never recompile it against OxCaml.
+
+## Background — why the build-fix patch exists
+
+moonshot's source `otherlibs/unix/dune` and
+`otherlibs/systhreads/byte/dune` defined libraries with the bare names
+`unix` and `threads`. That matches the names of the corresponding
+opam-side libraries that the system ocamlfind discovers. As long as
+nothing in the link closure transitively requires the opam-side `threads`
+or `unix`, there's no conflict — moonshot's source libraries are the
+only ones in scope and become the installed stdlib.
+
+The MLIR backend's `omlir` library depends on `ctypes-foreign`, which
+declares `requires "ctypes threads"`. The instant `omlir` enters the
+executable's library closure, dune sees TWO libraries called `threads`
+(source-side and opam-side) and refuses to pick one.
+
+The fix renames the source libraries to private names
+(`ocaml_unix_internal`, `ocaml_threads_byte_internal`) so that
+`(libraries unix)` and `(libraries threads)` in any in-tree consumer
+cleanly resolve to the opam-side libraries during the main-context
+build. The install rules still emit `unix/unix.cma` and
+`threads/threads.cma` under the public names, so externally there's no
+visible change in what gets installed.
+
+A second, easily-missed consequence: a renamed library's archives embed
+its stub-archive name, so `unix.cm{a,xa}` reference
+`-locaml_unix_internal_stubs` and `dllocaml_unix_internal_stubs.so`
+(likewise `threads.cma` →
+`-locaml_threads_byte_internal_stubs` / `.so`). The install rules must
+therefore install the stub `.a`/`.so` under **both** the embedded
+internal name and the legacy `libunix_stubs.a` / `dllthreads_stubs.so`
+name, or every consumer linking `unix`/`threads` fails at link time.
+This is the stub-name fix in `otherlibs/{unix,systhreads}/dune`; it is
+required and validated (the dune rules alone are sufficient — no manual
+copying of stub archives is needed).

@@ -5,12 +5,34 @@
    (:standard -w +4+9-30+44+45+48-69-70))))
 
 (library
+ (name caml_bindings)
+ (modules caml_bindings)
+ (libraries ocamlcommon ocamloptcomp ocamlbytecomp omlir)
+ (foreign_stubs
+  (language c)
+  (names caml_bindings_stubs))
+ (c_library_flags
+  (-L/home/vishr/Dev/moonshot/_build/mlir-dialect/lib
+   -lMLIROCaml
+   -Wl,-rpath,/home/vishr/Dev/moonshot/_build/mlir-dialect/lib)))
+
+(library
+ (name mlir_lowering)
+ (modules mlir)
+ (libraries
+  ocamlcommon
+  ocamloptcomp
+  ocamlbytecomp
+  omlir))
+
+(library
  (name mlir)
  (wrapped false)
+ (modules mlirize)
  (flags
   (:standard
    -open
-   Mlir_frontend
+   caml_bindings
    -open
    Mlir_lowering
    -open
@@ -25,4 +47,4 @@
   ocamloptcomp
   mlir_dialect
   mlir_lowering
-  mlir_frontend))
+  caml_bindings))

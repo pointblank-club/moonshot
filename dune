@@ -786,10 +786,9 @@
   ocamloptcomp
   ocamlcommon
   unix
-  omlir)
- (ocamlopt_flags
-  (:standard -I +unix unix.cmxa -I +threads threads.cmxa -I %{env:OPAM_SWITCH_PREFIX=}/lib/integers -I %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes -I %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes-foreign %{env:OPAM_SWITCH_PREFIX=}/lib/integers/integers.cmxa %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes/ctypes.cmxa %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes-foreign/ctypes_foreign.cmxa))
- (modules mlirize translate through_mlir llvm_emitter oxcaml_main))
+  omlir
+  caml_bindings)
+ (modules mlirize mlir oxcaml_main))
 
 (rule
  (targets oxcaml_main_native.ml)
@@ -810,10 +809,11 @@
   ocamloptcomp
   ocamlcommon
   unix
-  omlir)
+  omlir
+  caml_bindings)
  (ocamlopt_flags
-  (:standard -runtime-variant nnp -I +unix unix.cmxa -I +threads threads.cmxa -I %{env:OPAM_SWITCH_PREFIX=}/lib/integers -I %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes -I %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes-foreign %{env:OPAM_SWITCH_PREFIX=}/lib/integers/integers.cmxa %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes/ctypes.cmxa %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes-foreign/ctypes_foreign.cmxa))
- (modules mlirize translate through_mlir llvm_emitter oxcaml_main_native))
+  (:standard -runtime-variant nnp))
+ (modules mlirize mlir oxcaml_main_native))
 
 ; CR sdolan: Could be faster if it was closure-only?
 
@@ -831,10 +831,11 @@
   flambda2_to_cmm
   ocamloptcomp
   ocamlcommon
-  omlir)
+  omlir
+  caml_bindings)
  (ocamlopt_flags
-  (:standard -I +unix unix.cmxa -I +threads threads.cmxa -I %{env:OPAM_SWITCH_PREFIX=}/lib/integers -I %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes -I %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes-foreign %{env:OPAM_SWITCH_PREFIX=}/lib/integers/integers.cmxa %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes/ctypes.cmxa %{env:OPAM_SWITCH_PREFIX=}/lib/ctypes-foreign/ctypes_foreign.cmxa))
- (modules mlirize translate through_mlir llvm_emitter boot_ocamlopt))
+  (:standard -I +unix unix.cmxa))
+ (modules mlirize mlir boot_ocamlopt))
 
 ; The input archives (.a, .cma and .cmxa) to the following three rules
 ; must be kept in sync with each other and in a topological order.
