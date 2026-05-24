@@ -18,26 +18,26 @@ let ocaml_string_type ctx =
         namespace.raw data.raw
   }
 
-let unit_result_types = []
+let ocaml_value_type ctx =
+  let namespace = StringRef.of_string "ocaml" in
+  let data = StringRef.of_string "value" in
+  { Type.raw =
+      Omlir_bindings.BuiltinTypes.mlirOpaqueTypeGet ctx.MlirContext.raw
+        namespace.raw data.raw
+  }
 
-let primitive_function_type builder prim =
-  let arg_type = ocaml_string_type builder.Builders.OpBuilder.ctx in
-  let args =
-    List.map (fun _ -> arg_type) prim.Primitive.prim_native_repr_args
-  in
-  Builders.OpBuilder.get_function_type builder args unit_result_types
+let ocaml_ocamlint_type ctx =
+  let namespace = StringRef.of_string "ocaml" in
+  let data = StringRef.of_string "int" in
+  { Type.raw =
+      Omlir_bindings.BuiltinTypes.mlirOpaqueTypeGet ctx.MlirContext.raw
+        namespace.raw data.raw
+  }
 
-let create_extern builder loc block name prim =
-  let ctx = builder.Builders.OpBuilder.ctx in
-  let func_type = primitive_function_type builder prim in
-  let state = Operation.State.get "ocaml.extern" loc in
-  Operation.State.add_attributes state
-    [
-      named_string_attr ctx "sym_name" name;
-      named_type_attr ctx "function_type" func_type;
-      named_string_attr ctx "target" (Primitive.native_name prim);
-    ];
-  append block (Operation.create state)
+let ocaml_i64_type ctx =
+  { Type.raw =
+      Omlir_bindings.BuiltinTypes.mlirIntegerTypeGet ctx.MlirContext.raw 64
+  }
 
 let create_string builder loc block value =
   let ctx = builder.Builders.OpBuilder.ctx in
@@ -48,9 +48,62 @@ let create_string builder loc block value =
   append block op;
   Operation.get_result op 0
 
-let create_extern_call builder loc block name prim args =
+let create_int builder loc block value =
   let ctx = builder.Builders.OpBuilder.ctx in
-  let func_type = primitive_function_type builder prim in
+  let state = Operation.State.get "ocaml.int" loc in
+  Operation.State.add_attributes state
+    [ Attribute.get_named (Identifier.get ctx "value")
+        (Attribute.get_integer64 (ocaml_i64_type ctx) (Int64.of_int value))
+    ];
+  Operation.State.add_results state [ ocaml_ocamlint_type ctx ];
+  let op = Operation.create state in
+  append block op;
+  Operation.get_result op 0
+
+let unit_result_types = []
+
+let primitive_function_type builder prim =
+  let ctx = builder.Builders.OpBuilder.ctx in
+  let map_repr_to_type (_mode, repr) =
+    try
+      match repr with
+      | Primitive.Unboxed_or_untagged_integer _ -> ocaml_i64_type ctx
+      | Primitive.Same_as_ocaml_repr sort ->
+          if sort = Jkind_types.Sort.Const.untagged_immediate then ocaml_i64_type ctx
+          else ocaml_value_type ctx
+      | _ -> ocaml_value_type ctx
+    with _ -> ocaml_value_type ctx
+  in
+  let args = List.map map_repr_to_type prim.Primitive.prim_native_repr_args in
+  Builders.OpBuilder.get_function_type builder args unit_result_types
+
+let create_extern builder loc block name prim func_type_opt =
+  let ctx = builder.Builders.OpBuilder.ctx in
+  let func_type =
+    match func_type_opt with
+    | Some t -> t
+    | None -> primitive_function_type builder prim
+  in
+  let state = Operation.State.get "ocaml.extern" loc in
+  Operation.State.add_attributes state
+    [
+      named_string_attr ctx "sym_name" name;
+      named_type_attr ctx "function_type" func_type;
+      named_string_attr ctx "target" (Primitive.native_name prim);
+    ];
+  append block (Operation.create state)
+
+let create_extern_call builder loc module_block block created_externs name prim args =
+  let ctx = builder.Builders.OpBuilder.ctx in
+  let arg_types = List.map (fun v -> Value.get_type v) args in
+  let func_type = Builders.OpBuilder.get_function_type builder arg_types unit_result_types in
+
+  (* Ensure module-level ocaml.extern with accurate function_type exists *)
+  if not (StringSet.mem name !created_externs) then (
+    create_extern builder loc module_block name prim (Some func_type);
+    created_externs := StringSet.add name !created_externs
+  );
+
   let state = Operation.State.get "ocaml.extern_call" loc in
   Operation.State.add_attributes state
     [
@@ -64,55 +117,10 @@ let create_extern_call builder loc block name prim args =
   Operation.State.add_operands state args;
   append block (Operation.create state)
 
-let rec primitive_calls_expr acc (expr : Typedtree.expression) =
+let rec compile_expr builder loc module_block block created_externs (expr : Typedtree.expression) =
   match expr.exp_desc with
-  | Texp_apply
-      ( { exp_desc =
-            Texp_ident
-              { lid = { txt = Longident.Lident name; _ };
-                desc = { Types.val_kind = Types.Val_prim prim; _ };
-                _
-              };
-          _ },
-        args,
-        _,
-        _,
-        _ ) ->
-    List.fold_left
-      (fun acc (_label, arg) ->
-        match arg with
-        | Typedtree.Arg (expr, _) -> primitive_calls_expr acc expr
-        | Typedtree.Omitted _ -> acc)
-      ((name, prim) :: acc)
-      args
-  | Texp_let (_, bindings, body) ->
-    let acc =
-      List.fold_left
-        (fun acc (binding : Typedtree.value_binding) ->
-          primitive_calls_expr acc binding.vb_expr)
-        acc bindings
-    in
-    primitive_calls_expr acc body
-  | Texp_sequence (first, _, second) ->
-    primitive_calls_expr (primitive_calls_expr acc first) second
-  | _ -> acc
-
-let primitive_calls (impl : Typedtree.implementation) =
-  List.fold_left
-    (fun acc (item : Typedtree.structure_item) ->
-      match item.str_desc with
-      | Tstr_eval (expr, _, _) -> primitive_calls_expr acc expr
-      | Tstr_value (_, bindings) ->
-        List.fold_left
-          (fun acc (binding : Typedtree.value_binding) ->
-            primitive_calls_expr acc binding.vb_expr)
-          acc bindings
-      | _ -> acc)
-    [] impl.structure.str_items
-  |> List.rev
-
-let rec compile_expr builder loc block (expr : Typedtree.expression) =
-  match expr.exp_desc with
+  | Texp_constant (Const_int value) ->
+    Some (create_int builder loc block value)
   | Texp_constant (Const_string (value, _, _)) ->
     Some (create_string builder loc block value)
   | Texp_apply
@@ -131,36 +139,36 @@ let rec compile_expr builder loc block (expr : Typedtree.expression) =
       List.filter_map
         (fun (_label, arg) ->
           match arg with
-          | Typedtree.Arg (expr, _) -> compile_expr builder loc block expr
+          | Typedtree.Arg (expr, _) -> compile_expr builder loc module_block block created_externs expr
           | Typedtree.Omitted _ -> None)
         args
     in
-    create_extern_call builder loc block name prim args;
+    create_extern_call builder loc module_block block created_externs name prim args;
     None
   | Texp_let (_, bindings, body) ->
     List.iter
       (fun (binding : Typedtree.value_binding) ->
         ignore
-          (compile_expr builder loc block binding.vb_expr : Value.t option))
+          (compile_expr builder loc module_block block created_externs binding.vb_expr : Value.t option))
       bindings;
-    compile_expr builder loc block body
+    compile_expr builder loc module_block block created_externs body
   | Texp_sequence (first, _, second) ->
-    ignore (compile_expr builder loc block first : Value.t option);
-    compile_expr builder loc block second
+    ignore (compile_expr builder loc module_block block created_externs first : Value.t option);
+    compile_expr builder loc module_block block created_externs second
   | _ -> None
 
-let compile_structure builder loc entry_block (impl : Typedtree.implementation)
+let compile_structure builder loc module_block entry_block created_externs (impl : Typedtree.implementation)
     =
   List.iter
     (fun (item : Typedtree.structure_item) ->
       match item.str_desc with
       | Tstr_eval (expr, _, _) ->
-        ignore (compile_expr builder loc entry_block expr : Value.t option)
+        ignore (compile_expr builder loc module_block entry_block created_externs expr : Value.t option)
       | Tstr_value (_, bindings) ->
         List.iter
           (fun (binding : Typedtree.value_binding) ->
             ignore
-              (compile_expr builder loc entry_block binding.vb_expr
+              (compile_expr builder loc module_block entry_block created_externs binding.vb_expr
                 : Value.t option))
           bindings
       | _ -> ())
@@ -201,17 +209,7 @@ let compile_from_typed ~module_name ~output_prefix ~ppf_dump _impl =
 
   let ocaml_mod = Operation.create state in
 
-  let externs = primitive_calls _impl in
-  let _, _ =
-    List.fold_left
-      (fun (seen, ()) (name, prim) ->
-        if StringSet.mem name seen
-        then seen, ()
-        else (
-          create_extern builder loc block name prim;
-          StringSet.add name seen, ()))
-      (StringSet.empty, ()) externs
-  in
+  let created_externs = ref StringSet.empty in
 
   (* Create ocaml.entry operation *)
   let entry_state = Operation.State.get "ocaml.entry" loc in
@@ -222,7 +220,7 @@ let compile_from_typed ~module_name ~output_prefix ~ppf_dump _impl =
   let ocaml_entry = Operation.create entry_state in
   Operation.append_owned_operation block ocaml_entry;
 
-  compile_structure builder loc entry_block _impl;
+  compile_structure builder loc block entry_block created_externs _impl;
 
   (* Pass the raw pointers to the C++ FFI *)
   let raw_op = Bindings.Ir.mlir_operation_ptr ocaml_mod.raw in

@@ -52,6 +52,13 @@ def StringOp : OCaml_Op<"string"> {
   let assemblyFormat = "$value attr-dict `:` type($result)";
 }
 
+def IntOp : OCaml_Op<"int"> {
+  let summary = "An OCaml int literal";
+  let arguments = (ins I64Attr:$value);
+  let results = (outs AnyType:$result);
+  let assemblyFormat = "$value attr-dict `:` type($result)";
+}
+
 def ExternCallOp : OCaml_Op<"extern_call"> {
   let summary = "A call to an OCaml external";
   let arguments = (ins SymbolRefAttr:$callee,

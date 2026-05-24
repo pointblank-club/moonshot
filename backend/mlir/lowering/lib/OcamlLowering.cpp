@@ -14,6 +14,10 @@ namespace ocaml {
 #define GEN_PASS_DEF_CONVERTOCAMLTOBUILTIN
 #include "OCaml/Passes.h.inc"
 
+void populateOcamlLoweringTypesPatterns(::mlir::RewritePatternSet &patterns,
+                                        const ::mlir::TypeConverter &typeConverter,
+                                        ::mlir::MLIRContext *context);
+
 } // namespace ocaml
 
 using namespace mlir;
@@ -88,65 +92,6 @@ struct EntryOpLowering : public OpConversionPattern<ocaml::EntryOp> {
   }
 };
 
-// Lowers `ocaml.string`.
-struct StringOpLowering : public OpConversionPattern<ocaml::StringOp> {
-  using OpConversionPattern<ocaml::StringOp>::OpConversionPattern;
-
-  StringOpLowering(const TypeConverter &typeConverter, MLIRContext *context,
-                   std::shared_ptr<LoweringState> state)
-      : OpConversionPattern<ocaml::StringOp>(typeConverter, context),
-        state(std::move(state)) {}
-
-  LogicalResult
-  matchAndRewrite(ocaml::StringOp op, OpAdaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    auto parent_module = op->getParentOfType<ocaml::ModuleOp>();
-    if (!parent_module) {
-      return rewriter.notifyMatchFailure(op,
-                                         "string has no ocaml.module parent");
-    }
-
-    std::string sym_name_str = "";
-    if (auto symName = parent_module.getSymName()) {
-      sym_name_str = symName->str();
-    }
-    std::string globalName =
-        "caml" + sym_name_str + "." + std::to_string(++state->stringIndex);
-    std::string stringValue = op.getValue().str();
-    size_t dataWords = (stringValue.size() + 1 + 7) / 8;
-    uint64_t header = (dataWords << 10) | 0x3fc;
-    unsigned padding = (dataWords * 8) - 1 - stringValue.size();
-    std::string value;
-    for (unsigned i = 0; i < 8; i++) {
-      value.push_back(static_cast<char>((header >> (i * 8)) & 0xff));
-    }
-    value.append(stringValue);
-    value.append(padding, '\0');
-    value.push_back(static_cast<char>(padding));
-
-    auto i8Type = rewriter.getI8Type();
-    auto ptrType = LLVM::LLVMPointerType::get(op.getContext());
-    OpBuilder::InsertionGuard guard(rewriter);
-    rewriter.setInsertionPoint(parent_module);
-    auto arrayType = LLVM::LLVMArrayType::get(i8Type, value.size());
-    LLVM::GlobalOp::create(
-        rewriter, op.getLoc(), arrayType, true, LLVM::Linkage::External,
-        globalName,
-        rewriter.getStringAttr(StringRef(value.data(), value.size())));
-
-    rewriter.setInsertionPoint(op);
-    auto address =
-        LLVM::AddressOfOp::create(rewriter, op.getLoc(), ptrType, globalName);
-    auto dataAddress = LLVM::GEPOp::create(
-        rewriter, op.getLoc(), ptrType, i8Type, address.getResult(),
-        ArrayRef<LLVM::GEPArg>{8}, LLVM::GEPNoWrapFlags::none, {});
-    rewriter.replaceOp(op, dataAddress.getResult());
-    return success();
-  }
-
-private:
-  std::shared_ptr<LoweringState> state;
-};
 
 // Lowers `ocaml.extern_call`.
 struct ExternCallOpLowering : public OpConversionPattern<ocaml::ExternCallOp> {
@@ -172,13 +117,45 @@ struct ExternCallOpLowering : public OpConversionPattern<ocaml::ExternCallOp> {
     }
 
     SmallVector<Value> args(adaptor.getArgs().begin(), adaptor.getArgs().end());
+
+    // If we can find the corresponding ocaml::ExternOp declaration in the
+    // parent module, inspect its function_type attribute to determine which
+    // arguments are expected as raw (unboxed) i64s on the C side. For those
+    // arguments, untag the OCaml immediate representation before making the
+    // direct call (untagging = arithmetic shift right by 1).
+    auto i64Type = rewriter.getI64Type();
+    for (Operation &child : parent_module.getBody().front()) {
+      if (auto externOp = dyn_cast<ocaml::ExternOp>(child)) {
+        if (externOp.getSymName() == callee) {
+          if (auto funcTypeAttr = child.getAttrOfType<TypeAttr>("function_type")) {
+            Type t = funcTypeAttr.getValue();
+            if (mlir::isa<FunctionType>(t)) {
+              auto funcType = mlir::cast<FunctionType>(t);
+              size_t n = std::min<size_t>(args.size(), funcType.getNumInputs());
+              OpBuilder::InsertionGuard argGuard(rewriter);
+              rewriter.setInsertionPoint(op);
+              for (size_t i = 0; i < n; ++i) {
+                Type expected = funcType.getInput(i);
+                if (expected.isInteger(64)) {
+                  // Untag OCaml immediate (tagged = (v<<1)|1) -> raw = ashr(tagged,1)
+                  auto oneConst = LLVM::ConstantOp::create(rewriter, op.getLoc(), i64Type, 1ULL);
+                  auto untag = LLVM::AShrOp::create(rewriter, op.getLoc(), i64Type, args[i], oneConst.getResult());
+                  args[i] = untag.getResult();
+                }
+              }
+            }
+          }
+          break;
+        }
+      }
+    }
+
     SmallVector<Type> argTypes;
     argTypes.reserve(args.size());
     for (Value arg : args) {
       argTypes.push_back(arg.getType());
     }
 
-    auto i64Type = rewriter.getI64Type();
     auto targetType = LLVM::LLVMFunctionType::get(i64Type, argTypes, false);
     OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPoint(parent_module);
@@ -255,11 +232,16 @@ struct ConvertOCamlToBuiltin
     MLIRContext *context = &getContext();
     TypeConverter typeConverter;
     auto ptrType = LLVM::LLVMPointerType::get(context);
+    auto i64Type = IntegerType::get(context, 64);
     typeConverter.addConversion([&](Type type) -> Type {
       if (auto opaque = llvm::dyn_cast<OpaqueType>(type)) {
-        if (opaque.getDialectNamespace() == "ocaml" &&
-            opaque.getTypeData() == "string") {
-          return ptrType;
+        if (opaque.getDialectNamespace() == "ocaml") {
+          if (opaque.getTypeData() == "string") {
+            return ptrType;
+          }
+          if (opaque.getTypeData() == "int") {
+            return i64Type;
+          }
         }
       }
       return type;
@@ -269,11 +251,13 @@ struct ConvertOCamlToBuiltin
       ConversionTarget target(*context);
       target.addLegalDialect<LLVM::LLVMDialect>();
       target.addLegalOp<ocaml::ModuleOp, ocaml::ExternOp, ocaml::EntryOp>();
-      target.addIllegalOp<ocaml::StringOp, ocaml::ExternCallOp>();
+      target.addIllegalOp<ocaml::StringOp, ocaml::IntOp,
+                          ocaml::ExternCallOp>();
 
       RewritePatternSet patterns(context);
       patterns.add<EntryOpLowering>(context);
-      patterns.add<StringOpLowering>(typeConverter, context, loweringState);
+      ocaml::populateOcamlLoweringTypesPatterns(patterns, typeConverter,
+                                                context);
       patterns.add<ExternCallOpLowering>(typeConverter, context);
 
       if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
