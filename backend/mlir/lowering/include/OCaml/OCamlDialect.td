@@ -64,8 +64,10 @@ def ExternCallOp : OCaml_Op<"extern_call"> {
   let arguments = (ins SymbolRefAttr:$callee,
                        Variadic<AnyType>:$args,
                        TypeAttrOf<FunctionType>:$callee_type);
+  let results = (outs AnyType:$result);
   let assemblyFormat =
-      "$callee `(` $args `:` type($args) `)` attr-dict `:` $callee_type";
+      "$callee `(` $args `:` type($args) `)` attr-dict `:` "
+      # "$callee_type `->` type($result)";
 }
 
 def BinOp : OCaml_Op<"binop"> {
