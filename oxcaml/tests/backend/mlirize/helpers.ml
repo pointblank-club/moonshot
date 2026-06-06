@@ -1,6 +1,7 @@
 type t =
   { exit_status : int;
     stdout : string;
+    run_stdout : string;
     mlir : string;
     std_mlir : string;
     llvm : string
@@ -18,7 +19,8 @@ let read_file path =
 
 let clean_temp_files prefix =
   let extensions =
-    [".ml"; ".o"; ".cmi"; ".cmx"; ".mlir"; "_std.mlir"; ".ll"; ".stdout"]
+    [ ".ml"; ".o"; ".cmi"; ".cmx"; ".mlir"; "_std.mlir"; ".ll"; ".stdout"
+    ; ".exe"; ".build_bin.stdout"; ".run.stdout"; "_main.c" ]
   in
   List.iter
     (fun ext ->
@@ -26,18 +28,24 @@ let clean_temp_files prefix =
       if Sys.file_exists path then try Sys.remove path with _ -> ())
     extensions
 
-let find_ocamlopt () =
-  let rec find_root dir =
-    if Sys.file_exists (Filename.concat dir "dune-project")
-    then dir
-    else
-      let parent = Filename.dirname dir in
-      if parent = dir
-      then failwith "Could not find repo root"
-      else find_root parent
+let find_root () =
+  let cwd = Sys.getcwd () in
+  let parts = String.split_on_char '/' cwd in
+  let rec keep_before_build acc = function
+    | [] -> List.rev acc
+    | "_build" :: _ -> List.rev acc
+    | x :: xs -> keep_before_build (x :: acc) xs
   in
-  let root = find_root (Sys.getcwd ()) in
+  let real_parts = keep_before_build [] parts in
+  String.concat "/" real_parts
+
+let find_ocamlopt () =
+  let root = find_root () in
   Filename.concat root "_build/_bootinstall/bin/ocamlopt.opt"
+
+let find_ocamllib () =
+  let root = find_root () in
+  Filename.concat root "runtime"
 
 let clean_llvm content =
   let lines = String.split_on_char '\n' content in
@@ -51,8 +59,9 @@ let clean_llvm content =
   in
   String.concat "\n" filtered
 
-let test_compile ~name ~code =
+let test_compile_impl ~cleanup ~name ~code =
   let ocamlopt = find_ocamlopt () in
+  let ocamllib = find_ocamllib () in
   let prefix = name in
   clean_temp_files prefix;
   (* Write source *)
@@ -62,8 +71,9 @@ let test_compile ~name ~code =
   (* Run compiler *)
   let cmd =
     Printf.sprintf
-      "%s -nostdlib -nopervasives -mlir-backend -c %s.ml > %s.stdout 2>&1"
-      ocamlopt prefix prefix
+      "%s -nostdlib -nopervasives -mlir-backend -ccopt -I%s -c %s.ml \
+       helpers.c > %s.stdout 2>&1"
+      ocamlopt ocamllib prefix prefix
   in
   let exit_status = Sys.command cmd in
   (* Print compiler stdout *)
@@ -84,8 +94,55 @@ let test_compile ~name ~code =
   let llvm_raw = read_file (prefix ^ ".ll") in
   let llvm = clean_llvm llvm_raw in
   (* Cleanup *)
+  if cleanup then clean_temp_files prefix;
+  { exit_status; stdout; run_stdout = ""; mlir; std_mlir; llvm }
+
+let test_compile ~name ~code =
+  test_compile_impl ~cleanup:true ~name ~code
+
+let test_compile_and_run ~name ~code =
+  let t = test_compile_impl ~cleanup:false ~name ~code in
+  let prefix = name in
+  let main_c = prefix ^ "_main.c" in
+  let entry_sym =
+    "caml" ^ String.capitalize_ascii prefix ^ "__entry"
+  in
+  let oc = open_out main_c in
+  Printf.fprintf oc
+    "extern long %s(void);\n\
+     int main(void) {\n\
+     \  %s();\n\
+     \  return 0;\n\
+     }\n"
+    entry_sym entry_sym;
+  close_out oc;
+  let bin_cmd =
+    Printf.sprintf
+      "gcc -o %s.exe %s.o helpers.o %s > %s.build_bin.stdout 2>&1"
+      prefix prefix main_c prefix
+  in
+  let bin_exit = Sys.command bin_cmd in
+  let run_stdout =
+    if bin_exit <> 0
+    then
+      let build_bin_stdout = read_file (prefix ^ ".build_bin.stdout") in
+      Printf.sprintf "<link failed with exit code %d>\nBuild output:\n%s"
+        bin_exit build_bin_stdout
+    else
+      let run_cmd =
+        Printf.sprintf "./%s.exe > %s.run.stdout 2>&1" prefix prefix
+      in
+      let run_exit = Sys.command run_cmd in
+      let run_output = read_file (prefix ^ ".run.stdout") in
+      if run_exit <> 0
+      then
+        Printf.sprintf "<run failed with exit code %d>\nStdout:\n%s" run_exit
+          run_output
+      else run_output
+  in
+  (* Cleanup *)
   clean_temp_files prefix;
-  { exit_status; stdout; mlir; std_mlir; llvm }
+  { t with run_stdout }
 
 let verify_build_stdout t =
   if t.exit_status <> 0
@@ -97,3 +154,5 @@ let verify_mlir t = Printf.printf "%s" t.mlir
 let verify_std_mlir t = Printf.printf "%s" t.std_mlir
 
 let verify_llvm t = Printf.printf "%s" t.llvm
+
+let verify_stdout t = Printf.printf "%s" t.run_stdout

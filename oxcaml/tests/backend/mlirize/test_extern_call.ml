@@ -75,3 +75,91 @@ let%expect_test "extern call assignment" =
 
     !0 = !{i32 2, !"Debug Info Version", i32 3}
     |}]
+
+let%expect_test "extern call helpers" =
+  let t =
+    test_compile_and_run ~name:"extern_call_helpers"
+      ~code:
+        "\n\
+        \    external ( + ) : int -> int -> int = \"%addint\"\n\
+        \    external print_int : int -> unit = \"print_int\"\n\
+        \    external print_str : string -> unit = \"print_str\"\n\
+        \    let () = print_str \"Hello, MLIR!\"\n\
+        \    let () = print_int (41 + 1)\n\
+        \  "
+  in
+  verify_mlir t;
+  [%expect {|
+    ocaml.module @Extern_call_helpers {
+      ocaml.entry {
+        %0 = ocaml.string "Hello, MLIR!" : !ocaml.string
+        %1 = ocaml.extern_call @print_str(%0 : !ocaml.string) : (!ocaml.string) -> !ocaml.value -> !ocaml.value
+        %2 = ocaml.int 41 : !ocaml.int
+        %3 = ocaml.int 1 : !ocaml.int
+        %4 = ocaml.binop "+" %2, %3 : !ocaml.int, !ocaml.int -> !ocaml.int
+        %5 = ocaml.extern_call @print_int(%4 : !ocaml.int) : (!ocaml.int) -> !ocaml.value -> !ocaml.value
+      }
+      ocaml.extern @print_str {target = "print_str"} : (!ocaml.string) -> !ocaml.value
+      ocaml.extern @print_int {target = "print_int"} : (!ocaml.int) -> !ocaml.value
+    }
+    |}];
+  verify_std_mlir t;
+  [%expect {|
+    module {
+      llvm.mlir.global external constant @camlExtern_call_helpers.1("\FC\0B\00\00\00\00\00\00Hello, MLIR!\00\00\00\03") {addr_space = 0 : i32}
+      llvm.func @print_str(!llvm.ptr) -> i64
+      llvm.func @print_int(i64) -> i64
+      llvm.func @camlExtern_call_helpers__entry() -> i64 {
+        %0 = llvm.mlir.addressof @camlExtern_call_helpers.1 : !llvm.ptr
+        %1 = llvm.getelementptr %0[8] : (!llvm.ptr) -> !llvm.ptr, i8
+        %2 = llvm.call @print_str(%1) : (!llvm.ptr) -> i64
+        %3 = llvm.mlir.constant(83 : i64) : i64
+        %4 = llvm.mlir.constant(3 : i64) : i64
+        %5 = llvm.add %3, %4 : i64
+        %6 = llvm.mlir.constant(1 : i64) : i64
+        %7 = llvm.sub %5, %6 : i64
+        %8 = llvm.call @print_int(%7) : (i64) -> i64
+        %9 = llvm.mlir.constant(1 : i64) : i64
+        llvm.return %9 : i64
+      }
+      llvm.mlir.global external @camlExtern_call_helpers__gc_roots(0 : i64) {addr_space = 0 : i32} : i64
+      llvm.mlir.global external @camlExtern_call_helpers__data_begin(0 : i64) {addr_space = 0 : i32} : i64
+      llvm.mlir.global external @camlExtern_call_helpers__data_end(0 : i64) {addr_space = 0 : i32} : i64
+      llvm.mlir.global external @camlExtern_call_helpers__code_begin(0 : i64) {addr_space = 0 : i32} : i64
+      llvm.mlir.global external @camlExtern_call_helpers__code_end(0 : i64) {addr_space = 0 : i32} : i64
+      llvm.mlir.global external @camlExtern_call_helpers__frametable(0 : i64) {addr_space = 0 : i32} : i64
+    }
+    |}];
+  verify_llvm t;
+  [%expect {|
+    ; ModuleID = 'LLVMDialectModule'
+    source_filename = "LLVMDialectModule"
+
+    @camlExtern_call_helpers.1 = constant [24 x i8] c"\FC\0B\00\00\00\00\00\00Hello, MLIR!\00\00\00\03"
+    @camlExtern_call_helpers__gc_roots = global i64 0
+    @camlExtern_call_helpers__data_begin = global i64 0
+    @camlExtern_call_helpers__data_end = global i64 0
+    @camlExtern_call_helpers__code_begin = global i64 0
+    @camlExtern_call_helpers__code_end = global i64 0
+    @camlExtern_call_helpers__frametable = global i64 0
+
+    declare i64 @print_str(ptr)
+
+    declare i64 @print_int(i64)
+
+    define i64 @camlExtern_call_helpers__entry() {
+      %1 = call i64 @print_str(ptr getelementptr inbounds nuw (i8, ptr @camlExtern_call_helpers.1, i64 8))
+      %2 = call i64 @print_int(i64 85)
+      ret i64 1
+    }
+
+    !llvm.module.flags = !{!0}
+
+    !0 = !{i32 2, !"Debug Info Version", i32 3}
+    |}];
+  verify_stdout t;
+  [%expect {|
+    Hello, MLIR!
+    42
+    |}]
+
