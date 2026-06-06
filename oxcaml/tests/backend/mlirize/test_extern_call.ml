@@ -89,7 +89,8 @@ let%expect_test "extern call helpers" =
         \  "
   in
   verify_mlir t;
-  [%expect {|
+  [%expect
+    {|
     ocaml.module @Extern_call_helpers {
       ocaml.entry {
         %0 = ocaml.string "Hello, MLIR!" : !ocaml.string
@@ -104,7 +105,8 @@ let%expect_test "extern call helpers" =
     }
     |}];
   verify_std_mlir t;
-  [%expect {|
+  [%expect
+    {|
     module {
       llvm.mlir.global external constant @camlExtern_call_helpers.1("\FC\0B\00\00\00\00\00\00Hello, MLIR!\00\00\00\03") {addr_space = 0 : i32}
       llvm.func @print_str(!llvm.ptr) -> i64
@@ -131,7 +133,8 @@ let%expect_test "extern call helpers" =
     }
     |}];
   verify_llvm t;
-  [%expect {|
+  [%expect
+    {|
     ; ModuleID = 'LLVMDialectModule'
     source_filename = "LLVMDialectModule"
 
@@ -162,4 +165,3 @@ let%expect_test "extern call helpers" =
     Hello, MLIR!
     42
     |}]
-

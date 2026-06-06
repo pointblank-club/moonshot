@@ -19,8 +19,18 @@ let read_file path =
 
 let clean_temp_files prefix =
   let extensions =
-    [ ".ml"; ".o"; ".cmi"; ".cmx"; ".mlir"; "_std.mlir"; ".ll"; ".stdout"
-    ; ".exe"; ".build_bin.stdout"; ".run.stdout"; "_main.c" ]
+    [ ".ml";
+      ".o";
+      ".cmi";
+      ".cmx";
+      ".mlir";
+      "_std.mlir";
+      ".ll";
+      ".stdout";
+      ".exe";
+      ".build_bin.stdout";
+      ".run.stdout";
+      "_main.c" ]
   in
   List.iter
     (fun ext ->
@@ -71,8 +81,8 @@ let test_compile_impl ~cleanup ~name ~code =
   (* Run compiler *)
   let cmd =
     Printf.sprintf
-      "%s -nostdlib -nopervasives -mlir-backend -ccopt -I%s -c %s.ml \
-       helpers.c > %s.stdout 2>&1"
+      "%s -nostdlib -nopervasives -mlir-backend -ccopt -I%s -c %s.ml helpers.c \
+       > %s.stdout 2>&1"
       ocamlopt ocamllib prefix prefix
   in
   let exit_status = Sys.command cmd in
@@ -97,28 +107,20 @@ let test_compile_impl ~cleanup ~name ~code =
   if cleanup then clean_temp_files prefix;
   { exit_status; stdout; run_stdout = ""; mlir; std_mlir; llvm }
 
-let test_compile ~name ~code =
-  test_compile_impl ~cleanup:true ~name ~code
+let test_compile ~name ~code = test_compile_impl ~cleanup:true ~name ~code
 
 let test_compile_and_run ~name ~code =
   let t = test_compile_impl ~cleanup:false ~name ~code in
   let prefix = name in
   let main_c = prefix ^ "_main.c" in
-  let entry_sym =
-    "caml" ^ String.capitalize_ascii prefix ^ "__entry"
-  in
+  let entry_sym = "caml" ^ String.capitalize_ascii prefix ^ "__entry" in
   let oc = open_out main_c in
   Printf.fprintf oc
-    "extern long %s(void);\n\
-     int main(void) {\n\
-     \  %s();\n\
-     \  return 0;\n\
-     }\n"
+    "extern long %s(void);\nint main(void) {\n  %s();\n  return 0;\n}\n"
     entry_sym entry_sym;
   close_out oc;
   let bin_cmd =
-    Printf.sprintf
-      "gcc -o %s.exe %s.o helpers.o %s > %s.build_bin.stdout 2>&1"
+    Printf.sprintf "gcc -o %s.exe %s.o helpers.o %s > %s.build_bin.stdout 2>&1"
       prefix prefix main_c prefix
   in
   let bin_exit = Sys.command bin_cmd in
