@@ -128,7 +128,7 @@ struct BinOpLowering : public OpConversionPattern<ocaml::BinOp> {
       auto rhsUntagged = LLVM::AShrOp::create(rewriter, loc, i64Type, rhs, one.getResult());
       auto div = LLVM::SDivOp::create(rewriter, loc, i64Type, lhsUntagged.getResult(), rhsUntagged.getResult());
       auto divShifted = LLVM::ShlOp::create(rewriter, loc, i64Type, div.getResult(), one.getResult());
-      auto res = LLVM::OrOp::create(rewriter, loc, i64Type, divShifted.getResult(), one.getResult());
+      auto res = LLVM::AddOp::create(rewriter, loc, i64Type, divShifted.getResult(), one.getResult());
       rewriter.replaceOp(op, res.getResult());
       return success();
     }

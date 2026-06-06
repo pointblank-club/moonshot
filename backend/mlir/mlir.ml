@@ -71,23 +71,46 @@ let create_binop builder loc block op_name lhs rhs =
   append block op;
   Operation.get_result op 0
 
-let unit_result_types = []
 
+let map_ocaml_type_to_mlir ctx ty =
+  match (Types.Transient_expr.repr ty).desc with
+  | Types.Tconstr (path, _, _) when Path.same path Predef.path_int ->
+      ocaml_ocamlint_type ctx
+  | Types.Tconstr (path, _, _) when Path.same path Predef.path_string ->
+      ocaml_string_type ctx
+  | _ -> ocaml_value_type ctx
+
+let rec decompose_function_type ty =
+  match (Types.Transient_expr.repr ty).desc with
+  | Types.Tarrow (_, arg, res, _) ->
+      let args, ret = decompose_function_type res in
+      arg :: args, ret
+  | _ -> [], ty
+
+let map_repr_and_type_to_mlir ctx (_mode, repr) ocaml_ty_opt =
+  try
+    match repr with
+    | Primitive.Unboxed_or_untagged_integer _ -> ocaml_i64_type ctx
+    | Primitive.Same_as_ocaml_repr sort ->
+        if sort = Jkind_types.Sort.Const.untagged_immediate
+        then ocaml_i64_type ctx
+        else
+          (match ocaml_ty_opt with
+           | Some ty -> map_ocaml_type_to_mlir ctx ty
+           | None -> ocaml_value_type ctx)
+    | _ -> ocaml_value_type ctx
+  with _ -> ocaml_value_type ctx
+
+let map_repr_to_type ctx repr =
+  map_repr_and_type_to_mlir ctx repr None
 
 let primitive_function_type builder prim =
   let ctx = builder.Builders.OpBuilder.ctx in
-  let map_repr_to_type (_mode, repr) =
-    try
-      match repr with
-      | Primitive.Unboxed_or_untagged_integer _ -> ocaml_i64_type ctx
-      | Primitive.Same_as_ocaml_repr sort ->
-          if sort = Jkind_types.Sort.Const.untagged_immediate then ocaml_i64_type ctx
-          else ocaml_value_type ctx
-      | _ -> ocaml_value_type ctx
-    with _ -> ocaml_value_type ctx
+  let args =
+    List.map (map_repr_to_type ctx) prim.Primitive.prim_native_repr_args
   in
-  let args = List.map map_repr_to_type prim.Primitive.prim_native_repr_args in
-  Builders.OpBuilder.get_function_type builder args unit_result_types
+  let res_type = map_repr_to_type ctx prim.Primitive.prim_native_repr_res in
+  Builders.OpBuilder.get_function_type builder args [res_type]
 
 let create_extern builder loc block name prim func_type_opt =
   let ctx = builder.Builders.OpBuilder.ctx in
@@ -105,10 +128,18 @@ let create_extern builder loc block name prim func_type_opt =
     ];
   append block (Operation.create state)
 
-let create_extern_call builder loc module_block block created_externs name prim args =
+let create_extern_call builder loc module_block block created_externs name prim
+    val_type args =
   let ctx = builder.Builders.OpBuilder.ctx in
+  let _, ocaml_res = decompose_function_type val_type in
+  let res_type =
+    map_repr_and_type_to_mlir ctx prim.Primitive.prim_native_repr_res
+      (Some ocaml_res)
+  in
   let arg_types = List.map (fun v -> Value.get_type v) args in
-  let func_type = Builders.OpBuilder.get_function_type builder arg_types unit_result_types in
+  let func_type =
+    Builders.OpBuilder.get_function_type builder arg_types [res_type]
+  in
 
   (* Ensure module-level ocaml.extern with accurate function_type exists *)
   if not (StringSet.mem name !created_externs) then (
@@ -123,14 +154,22 @@ let create_extern_call builder loc module_block block created_externs name prim 
         (Omlir_bindings.BuiltinAttributes.mlirFlatSymbolRefAttrGet
            ctx.MlirContext.raw
            (StringRef.of_string name).raw
-        |> fun raw -> { Attribute.raw = raw });
+         |> fun raw -> { Attribute.raw = raw });
       named_type_attr ctx "callee_type" func_type;
     ];
   Operation.State.add_operands state args;
-  append block (Operation.create state)
+  Operation.State.add_results state [res_type];
+  let op = Operation.create state in
+  append block op;
+  Operation.get_result op 0
 
-let rec compile_expr builder loc module_block block created_externs (expr : Typedtree.expression) =
+let rec compile_expr env builder loc module_block block created_externs
+    (expr : Typedtree.expression) =
   match expr.exp_desc with
+  | Texp_ident { path; _ } ->
+    let name = Path.name path in
+    (try Some (List.assoc name env)
+     with Not_found -> None)
   | Texp_constant (Const_int value) ->
     Some (create_int builder loc block value)
   | Texp_constant (Const_string (value, _, _)) ->
@@ -139,7 +178,7 @@ let rec compile_expr builder loc module_block block created_externs (expr : Type
       ( { exp_desc =
             Texp_ident
               { lid = { txt = Longident.Lident name; _ };
-                desc = { Types.val_kind = Types.Val_prim prim; _ };
+                desc = { Types.val_kind = Types.Val_prim prim; val_type; _ };
                 _
               };
           _ },
@@ -157,8 +196,12 @@ let rec compile_expr builder loc module_block block created_externs (expr : Type
     in
     (match op_name_opt, args with
      | Some op_name, [(_, Typedtree.Arg (lhs_expr, _)); (_, Typedtree.Arg (rhs_expr, _))] ->
-       (match compile_expr builder loc module_block block created_externs lhs_expr,
-              compile_expr builder loc module_block block created_externs rhs_expr with
+       (match
+          compile_expr env builder loc module_block block created_externs
+            lhs_expr,
+          compile_expr env builder loc module_block block created_externs
+            rhs_expr
+        with
         | Some lhs_val, Some rhs_val ->
           Some (create_binop builder loc block op_name lhs_val rhs_val)
         | _ -> None)
@@ -167,38 +210,64 @@ let rec compile_expr builder loc module_block block created_externs (expr : Type
          List.filter_map
            (fun (_label, arg) ->
              match arg with
-             | Typedtree.Arg (expr, _) -> compile_expr builder loc module_block block created_externs expr
+             | Typedtree.Arg (expr, _) ->
+               compile_expr env builder loc module_block block
+                 created_externs expr
              | Typedtree.Omitted _ -> None)
            args
        in
-       create_extern_call builder loc module_block block created_externs name prim args;
-       None)
+       Some
+         (create_extern_call builder loc module_block block created_externs
+            name prim val_type args))
   | Texp_let (_, bindings, body) ->
-    List.iter
-      (fun (binding : Typedtree.value_binding) ->
-        ignore
-          (compile_expr builder loc module_block block created_externs binding.vb_expr : Value.t option))
-      bindings;
-    compile_expr builder loc module_block block created_externs body
+    let new_env =
+      List.fold_left
+        (fun acc (binding : Typedtree.value_binding) ->
+          let res =
+            compile_expr env builder loc module_block block created_externs
+              binding.vb_expr
+          in
+          match res, binding.vb_pat.pat_desc with
+          | Some val_obj, Tpat_var { id; _ } ->
+            (Ident.name id, val_obj) :: acc
+          | _ -> acc)
+        env
+        bindings
+    in
+    compile_expr new_env builder loc module_block block created_externs body
   | Texp_sequence (first, _, second) ->
-    ignore (compile_expr builder loc module_block block created_externs first : Value.t option);
-    compile_expr builder loc module_block block created_externs second
+    ignore
+      (compile_expr env builder loc module_block block created_externs first
+        : Value.t option);
+    compile_expr env builder loc module_block block created_externs second
   | _ -> None
 
-let compile_structure builder loc module_block entry_block created_externs (impl : Typedtree.implementation)
-    =
+let compile_structure builder loc module_block entry_block created_externs
+    (impl : Typedtree.implementation) =
+  let global_env = ref [] in
   List.iter
     (fun (item : Typedtree.structure_item) ->
       match item.str_desc with
       | Tstr_eval (expr, _, _) ->
-        ignore (compile_expr builder loc module_block entry_block created_externs expr : Value.t option)
+        ignore
+          (compile_expr !global_env builder loc module_block entry_block
+             created_externs expr : Value.t option)
       | Tstr_value (_, bindings) ->
-        List.iter
-          (fun (binding : Typedtree.value_binding) ->
-            ignore
-              (compile_expr builder loc module_block entry_block created_externs binding.vb_expr
-                : Value.t option))
-          bindings
+        let new_bindings =
+          List.filter_map
+            (fun (binding : Typedtree.value_binding) ->
+              match
+                compile_expr !global_env builder loc module_block entry_block
+                  created_externs binding.vb_expr
+              with
+              | Some val_obj ->
+                (match binding.vb_pat.pat_desc with
+                 | Tpat_var { id; _ } -> Some (Ident.name id, val_obj)
+                 | _ -> None)
+              | None -> None)
+            bindings
+        in
+        global_env := new_bindings @ !global_env
       | _ -> ())
     impl.structure.str_items
 

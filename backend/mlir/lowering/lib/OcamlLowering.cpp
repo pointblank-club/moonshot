@@ -163,9 +163,9 @@ struct ExternCallOpLowering : public OpConversionPattern<ocaml::ExternCallOp> {
         ensureFunction(rewriter, op.getLoc(), *target, targetType);
 
     rewriter.setInsertionPoint(op);
-    LLVM::CallOp::create(rewriter, op.getLoc(), targetType,
+    auto callOp = LLVM::CallOp::create(rewriter, op.getLoc(), targetType,
                          targetFunc.getName(), args);
-    rewriter.eraseOp(op);
+    rewriter.replaceOp(op, callOp.getResult());
     return success();
   }
 };
@@ -240,6 +240,9 @@ struct ConvertOCamlToBuiltin
             return ptrType;
           }
           if (opaque.getTypeData() == "int") {
+            return i64Type;
+          }
+          if (opaque.getTypeData() == "value") {
             return i64Type;
           }
         }
