@@ -27,6 +27,7 @@ depends: [
   "merlin"
   "ocaml-lsp-server"
   "omlir" {= "dev"}
+  "ppx_expect"
 ]
 # The upstream compiler used for building OxCaml should not be configured with
 # any of these options.

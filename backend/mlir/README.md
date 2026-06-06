@@ -22,4 +22,16 @@ For building just the compiler,
 make boot-compiler
 ```
 
+## Testing
+
+To run mlir specific tests, run
+```bash
+make runtest-mlirize
+```
+
+To promote tests, run
+```bash
+make runtest-mlirize PROMOTE=1
+```
+
 Use bear for clangd support in `backend/mlir/lowering`.

@@ -1,22 +1,5 @@
-; End-to-end test for the experimental MLIR backend.
-;
-; Compiles a minimal .ml via [ocamlopt.opt -mlir-backend -c], captures the
-; dialect dump from each pipeline stage, and diffs it against the checked-in
-; expected output.  A passing test demonstrates:
-;   * [-mlir-backend] is accepted on the command line;
-;   * the Typedtree -> high -> mid -> llvm pipeline is invoked;
-;   * [ocamlopt] exits with status 0 after the pipeline runs.
-
-(rule
- (targets empty.actual)
- (deps
-  (:ml empty.ml))
- (action
-  (with-outputs-to
-   empty.actual
-   (run %{bin:ocamlopt.opt} -nostdlib -nopervasives -mlir-backend -c %{ml}))))
-
-(rule
- (alias runtest-mlirize)
- (action
-  (diff empty.expected empty.actual)))
+(library
+ (name test_mlirize)
+ (inline_tests)
+ (modules test_helpers test_mlirize)
+ (preprocess (pps ppx_expect)))
