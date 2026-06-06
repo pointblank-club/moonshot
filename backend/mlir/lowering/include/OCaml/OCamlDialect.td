@@ -67,3 +67,11 @@ def ExternCallOp : OCaml_Op<"extern_call"> {
   let assemblyFormat =
       "$callee `(` $args `:` type($args) `)` attr-dict `:` $callee_type";
 }
+
+def BinOp : OCaml_Op<"binop"> {
+  let summary = "An OCaml binary operation";
+  let arguments = (ins StrAttr:$op_name, AnyType:$lhs, AnyType:$rhs);
+  let results = (outs AnyType:$result);
+  let assemblyFormat =
+      "$op_name $lhs `,` $rhs attr-dict `:` type($lhs) `,` type($rhs) `->` type($result)";
+}

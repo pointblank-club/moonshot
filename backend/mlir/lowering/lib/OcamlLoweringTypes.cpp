@@ -90,6 +90,53 @@ struct IntOpLowering : public OpConversionPattern<ocaml::IntOp> {
   }
 };
 
+struct BinOpLowering : public OpConversionPattern<ocaml::BinOp> {
+  using OpConversionPattern<ocaml::BinOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(ocaml::BinOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    Location loc = op.getLoc();
+    Value lhs = adaptor.getLhs();
+    Value rhs = adaptor.getRhs();
+    StringRef opName = op.getOpName();
+    Type i64Type = rewriter.getI64Type();
+
+    if (opName == "+") {
+      auto sum = LLVM::AddOp::create(rewriter, loc, i64Type, lhs, rhs);
+      auto one = LLVM::ConstantOp::create(rewriter, loc, i64Type, 1ULL);
+      auto res = LLVM::SubOp::create(rewriter, loc, i64Type, sum.getResult(), one.getResult());
+      rewriter.replaceOp(op, res.getResult());
+      return success();
+    } else if (opName == "-") {
+      auto diff = LLVM::SubOp::create(rewriter, loc, i64Type, lhs, rhs);
+      auto one = LLVM::ConstantOp::create(rewriter, loc, i64Type, 1ULL);
+      auto res = LLVM::AddOp::create(rewriter, loc, i64Type, diff.getResult(), one.getResult());
+      rewriter.replaceOp(op, res.getResult());
+      return success();
+    } else if (opName == "*") {
+      auto one = LLVM::ConstantOp::create(rewriter, loc, i64Type, 1ULL);
+      auto lhsMinusOne = LLVM::SubOp::create(rewriter, loc, i64Type, lhs, one.getResult());
+      auto rhsUntagged = LLVM::AShrOp::create(rewriter, loc, i64Type, rhs, one.getResult());
+      auto mul = LLVM::MulOp::create(rewriter, loc, i64Type, lhsMinusOne.getResult(), rhsUntagged.getResult());
+      auto res = LLVM::AddOp::create(rewriter, loc, i64Type, mul.getResult(), one.getResult());
+      rewriter.replaceOp(op, res.getResult());
+      return success();
+    } else if (opName == "/") {
+      auto one = LLVM::ConstantOp::create(rewriter, loc, i64Type, 1ULL);
+      auto lhsUntagged = LLVM::AShrOp::create(rewriter, loc, i64Type, lhs, one.getResult());
+      auto rhsUntagged = LLVM::AShrOp::create(rewriter, loc, i64Type, rhs, one.getResult());
+      auto div = LLVM::SDivOp::create(rewriter, loc, i64Type, lhsUntagged.getResult(), rhsUntagged.getResult());
+      auto divShifted = LLVM::ShlOp::create(rewriter, loc, i64Type, div.getResult(), one.getResult());
+      auto res = LLVM::OrOp::create(rewriter, loc, i64Type, divShifted.getResult(), one.getResult());
+      rewriter.replaceOp(op, res.getResult());
+      return success();
+    }
+
+    return failure();
+  }
+};
+
 } // namespace
 
 void populateOcamlLoweringTypesPatterns(RewritePatternSet &patterns,
@@ -98,6 +145,7 @@ void populateOcamlLoweringTypesPatterns(RewritePatternSet &patterns,
   auto state = std::make_shared<LoweringState>();
   patterns.add<StringOpLowering>(typeConverter, context, state);
   patterns.add<IntOpLowering>(context);
+  patterns.add<BinOpLowering>(typeConverter, context);
 }
 
 } // namespace ocaml

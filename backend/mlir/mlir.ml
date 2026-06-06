@@ -60,7 +60,19 @@ let create_int builder loc block value =
   append block op;
   Operation.get_result op 0
 
+let create_binop builder loc block op_name lhs rhs =
+  let ctx = builder.Builders.OpBuilder.ctx in
+  let state = Operation.State.get "ocaml.binop" loc in
+  Operation.State.add_attributes state
+    [ named_string_attr ctx "op_name" op_name ];
+  Operation.State.add_operands state [ lhs; rhs ];
+  Operation.State.add_results state [ ocaml_ocamlint_type ctx ];
+  let op = Operation.create state in
+  append block op;
+  Operation.get_result op 0
+
 let unit_result_types = []
+
 
 let primitive_function_type builder prim =
   let ctx = builder.Builders.OpBuilder.ctx in
@@ -135,16 +147,32 @@ let rec compile_expr builder loc module_block block created_externs (expr : Type
         _,
         _,
         _ ) ->
-    let args =
-      List.filter_map
-        (fun (_label, arg) ->
-          match arg with
-          | Typedtree.Arg (expr, _) -> compile_expr builder loc module_block block created_externs expr
-          | Typedtree.Omitted _ -> None)
-        args
+    let op_name_opt =
+      match prim.Primitive.prim_name with
+      | "%addint" -> Some "+"
+      | "%subint" -> Some "-"
+      | "%mulint" -> Some "*"
+      | "%divint" -> Some "/"
+      | _ -> None
     in
-    create_extern_call builder loc module_block block created_externs name prim args;
-    None
+    (match op_name_opt, args with
+     | Some op_name, [(_, Typedtree.Arg (lhs_expr, _)); (_, Typedtree.Arg (rhs_expr, _))] ->
+       (match compile_expr builder loc module_block block created_externs lhs_expr,
+              compile_expr builder loc module_block block created_externs rhs_expr with
+        | Some lhs_val, Some rhs_val ->
+          Some (create_binop builder loc block op_name lhs_val rhs_val)
+        | _ -> None)
+     | _ ->
+       let args =
+         List.filter_map
+           (fun (_label, arg) ->
+             match arg with
+             | Typedtree.Arg (expr, _) -> compile_expr builder loc module_block block created_externs expr
+             | Typedtree.Omitted _ -> None)
+           args
+       in
+       create_extern_call builder loc module_block block created_externs name prim args;
+       None)
   | Texp_let (_, bindings, body) ->
     List.iter
       (fun (binding : Typedtree.value_binding) ->
