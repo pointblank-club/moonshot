@@ -42,6 +42,6 @@ conflicts: [
   "ocaml-option-tsan"
 ]
 pin-depends: [
-  ["omlir.dev" "git+https://github.com/pointblank-club/mlir_ocaml_bindings.git"]
+  ["omlir.dev" "git+ssh://git@github.com/pointblank-club/mlir_ocaml_bindings.git"]
   ]
 flags: compiler
