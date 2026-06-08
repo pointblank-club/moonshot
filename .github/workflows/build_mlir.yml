@@ -71,7 +71,7 @@ jobs:
       - name: Configure
         run: |
           autoconf
-          ./configure --prefix=_install
+          ./configure --prefix=$(pwd)/_install
 
       - name: Build
         run: make install
