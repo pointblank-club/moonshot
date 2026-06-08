@@ -16,10 +16,14 @@ jobs:
       LD_LIBRARY_PATH: /usr/lib/llvm-22/lib
 
     steps:
+      - name: Setup SSH Agent for Submodules
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.OCAML_BINDINGS_ACTIONS }}
+
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-          ssh-key: ${{ secrets.OCAML_BINDINGS_ACTIONS }}
 
       - name: Install build tools
         run: |
