@@ -1,3 +1,3 @@
 [submodule "external/omlir"]
 	path = external/omlir
-	url = https://github.com/pointblank-club/mlir_ocaml_bindings.git
+	url = git@github.com:pointblank-club/mlir_ocaml_bindings.git
