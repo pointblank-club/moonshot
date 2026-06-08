@@ -12,9 +12,9 @@
   (language c)
   (names caml_bindings_stubs))
  (c_library_flags
-  (-L/home/vishr/Dev/moonshot/_build/mlir-dialect/lib
+  (-L%{project_root}/_build/mlir-dialect/lib
    -lMLIROCaml
-   -Wl,-rpath,/home/vishr/Dev/moonshot/_build/mlir-dialect/lib)))
+   -Wl,-rpath,%{project_root}/_build/mlir-dialect/lib)))
 
 (library
  (name mlir_lowering)
