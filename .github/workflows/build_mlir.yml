@@ -70,8 +70,8 @@ jobs:
 
       - name: Configure
         run: |
-          autoconf
-          ./configure --prefix=$(pwd)/_install
+          opam exec -- autoconf
+          opam exec -- ./configure --prefix=$(pwd)/_install
 
       - name: Build
-        run: make install
+        run: opam exec -- make install
