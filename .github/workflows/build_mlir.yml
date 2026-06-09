@@ -75,3 +75,6 @@ jobs:
 
       - name: Build
         run: opam exec -- make install
+
+      - name: Test
+        run: opam exec -- make runtest-mlirize
