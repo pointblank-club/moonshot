@@ -21,10 +21,26 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.OCAML_BINDINGS_ACTIONS }}
 
-      - uses: actions/checkout@v4
+      - name: Checkout Moonshot
+        uses: actions/checkout@v4
         with:
-          submodules: recursive
+          submodules: false
           persist-credentials: false
+
+      - name: Setup SSH known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+      - name: Debug SSH access
+        run: |
+          ssh -T git@github.com || true
+          git ls-remote git@github.com:pointblank-club/mlir_ocaml_bindings.git
+
+      - name: Checkout submodules
+        run: |
+          git submodule sync --recursive
+          git submodule update --init --recursive
 
       - name: Install build tools
         run: |
@@ -54,9 +70,11 @@ jobs:
 
       - name: Configure
         run: |
-          autoconf
-          ./configure --prefix=_install
+          opam exec -- autoconf
+          opam exec -- ./configure --prefix=$(pwd)/_install
 
       - name: Build
-        run: make install
+        run: opam exec -- make install
 
+      - name: Test
+        run: opam exec -- make runtest-mlirize
