@@ -7,7 +7,7 @@ set(CMAKE_CXX_EXTENSIONS NO)
 
 add_compile_options(-Wall -Wextra -Werror)
 
-set(BUILD_SHARED_LIBS ON)
+set(BUILD_SHARED_LIBS OFF)
 
 find_package(MLIR REQUIRED CONFIG)
 find_package(LLVM REQUIRED CONFIG)
