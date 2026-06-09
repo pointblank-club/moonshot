@@ -13,8 +13,7 @@
   (names caml_bindings_stubs))
  (c_library_flags
   (-L%{project_root}/_build/mlir-dialect/lib
-   -lMLIROCaml
-   -Wl,-rpath,%{project_root}/_build/mlir-dialect/lib)))
+   -lMLIROCaml)))
 
 (library
  (name mlir_lowering)
