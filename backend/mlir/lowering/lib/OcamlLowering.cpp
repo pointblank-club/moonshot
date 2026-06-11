@@ -14,9 +14,9 @@ namespace ocaml {
 #define GEN_PASS_DEF_CONVERTOCAMLTOBUILTIN
 #include "OCaml/Passes.h.inc"
 
-void populateOcamlLoweringTypesPatterns(::mlir::RewritePatternSet &patterns,
-                                        const ::mlir::TypeConverter &typeConverter,
-                                        ::mlir::MLIRContext *context);
+void populateOcamlLoweringTypesPatterns(
+    ::mlir::RewritePatternSet &patterns,
+    const ::mlir::TypeConverter &typeConverter, ::mlir::MLIRContext *context);
 
 } // namespace ocaml
 
@@ -92,7 +92,6 @@ struct EntryOpLowering : public OpConversionPattern<ocaml::EntryOp> {
   }
 };
 
-
 // Lowers `ocaml.extern_call`.
 struct ExternCallOpLowering : public OpConversionPattern<ocaml::ExternCallOp> {
   using OpConversionPattern<ocaml::ExternCallOp>::OpConversionPattern;
@@ -127,7 +126,8 @@ struct ExternCallOpLowering : public OpConversionPattern<ocaml::ExternCallOp> {
     for (Operation &child : parent_module.getBody().front()) {
       if (auto externOp = dyn_cast<ocaml::ExternOp>(child)) {
         if (externOp.getSymName() == callee) {
-          if (auto funcTypeAttr = child.getAttrOfType<TypeAttr>("function_type")) {
+          if (auto funcTypeAttr =
+                  child.getAttrOfType<TypeAttr>("function_type")) {
             Type t = funcTypeAttr.getValue();
             if (mlir::isa<FunctionType>(t)) {
               auto funcType = mlir::cast<FunctionType>(t);
@@ -137,9 +137,13 @@ struct ExternCallOpLowering : public OpConversionPattern<ocaml::ExternCallOp> {
               for (size_t i = 0; i < n; ++i) {
                 Type expected = funcType.getInput(i);
                 if (expected.isInteger(64)) {
-                  // Untag OCaml immediate (tagged = (v<<1)|1) -> raw = ashr(tagged,1)
-                  auto oneConst = LLVM::ConstantOp::create(rewriter, op.getLoc(), i64Type, 1ULL);
-                  auto untag = LLVM::AShrOp::create(rewriter, op.getLoc(), i64Type, args[i], oneConst.getResult());
+                  // Untag OCaml immediate (tagged = (v<<1)|1) -> raw =
+                  // ashr(tagged,1)
+                  auto oneConst = LLVM::ConstantOp::create(
+                      rewriter, op.getLoc(), i64Type, 1ULL);
+                  auto untag =
+                      LLVM::AShrOp::create(rewriter, op.getLoc(), i64Type,
+                                           args[i], oneConst.getResult());
                   args[i] = untag.getResult();
                 }
               }
@@ -164,7 +168,7 @@ struct ExternCallOpLowering : public OpConversionPattern<ocaml::ExternCallOp> {
 
     rewriter.setInsertionPoint(op);
     auto callOp = LLVM::CallOp::create(rewriter, op.getLoc(), targetType,
-                         targetFunc.getName(), args);
+                                       targetFunc.getName(), args);
     rewriter.replaceOp(op, callOp.getResult());
     return success();
   }
@@ -254,8 +258,8 @@ struct ConvertOCamlToBuiltin
       ConversionTarget target(*context);
       target.addLegalDialect<LLVM::LLVMDialect>();
       target.addLegalOp<ocaml::ModuleOp, ocaml::ExternOp, ocaml::EntryOp>();
-      target.addIllegalOp<ocaml::StringOp, ocaml::IntOp,
-                          ocaml::ExternCallOp, ocaml::BinOp>();
+      target.addIllegalOp<ocaml::StringOp, ocaml::IntOp, ocaml::ExternCallOp,
+                          ocaml::BinOp>();
 
       RewritePatternSet patterns(context);
       patterns.add<EntryOpLowering>(context);
