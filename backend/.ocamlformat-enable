@@ -71,6 +71,8 @@ linear.ml
 linear.mli
 llvm/**/*.ml
 llvm/**/*.mli
+mlir/**/*.ml
+mlir/**/*.mli
 polling_utils.ml
 polling_utils.mli
 peephole/**/*.ml
