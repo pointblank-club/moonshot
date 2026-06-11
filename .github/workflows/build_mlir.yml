@@ -62,6 +62,7 @@ jobs:
 
       - name: Restore OCaml and build cache
         uses: actions/cache/restore@v4
+        id: opam-cache
         with:
           path: |
             _opam
@@ -78,12 +79,14 @@ jobs:
           ocaml-compiler: 5.4.0
 
       - name: Initialize local switch if not restored
+        if: steps.opam-cache.outputs.cache-hit != 'true'
         run: |
           if [ ! -d "_opam" ]; then
             opam switch create . 5.4.0 -y
           fi
 
       - name: Install dependencies
+        if: steps.opam-cache.outputs.cache-hit != 'true'
         run: opam install . --deps-only --with-test -y
 
       - name: Configure
