@@ -60,30 +60,38 @@ jobs:
         run: |
           echo "/usr/lib/llvm-22/bin" >> $GITHUB_PATH
 
-      - name: Restore OCaml and build cache
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            _opam
-            _build
-            _install
-          key: moonshot-cache-${{ runner.os }}-${{ hashFiles('oxcaml-dev.opam', 'dune-project') }}-${{ github.sha }}
-          restore-keys: |
-            moonshot-cache-${{ runner.os }}-${{ hashFiles('oxcaml-dev.opam', 'dune-project') }}-
-            moonshot-cache-${{ runner.os }}-
-
       - name: Set up OCaml
         uses: ocaml/setup-ocaml@v3
         with:
           ocaml-compiler: 5.4.0
 
+      - name: Restore OCaml dependencies cache
+        uses: actions/cache/restore@v4
+        id: opam-cache
+        with:
+          path: _opam
+          key: moonshot-opam-${{ runner.os }}-${{ hashFiles('oxcaml-dev.opam', 'dune-project') }}
+
+      - name: Restore build cache
+        uses: actions/cache/restore@v4
+        id: build-cache
+        with:
+          path: |
+            _build
+            _install
+          key: moonshot-build-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            moonshot-build-${{ runner.os }}-
+
       - name: Initialize local switch if not restored
+        if: steps.opam-cache.outputs.cache-hit != 'true'
         run: |
           if [ ! -d "_opam" ]; then
             opam switch create . 5.4.0 -y
           fi
 
       - name: Install dependencies
+        if: steps.opam-cache.outputs.cache-hit != 'true'
         run: opam install . --deps-only --with-test -y
 
       - name: Configure
@@ -97,12 +105,18 @@ jobs:
       - name: Test
         run: opam exec -- make runtest-mlirize
 
-      - name: Save OCaml and build cache
+      - name: Save OCaml dependencies cache
+        if: github.ref == 'refs/heads/main' && steps.opam-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: _opam
+          key: moonshot-opam-${{ runner.os }}-${{ hashFiles('oxcaml-dev.opam', 'dune-project') }}
+
+      - name: Save build cache
         if: github.ref == 'refs/heads/main'
         uses: actions/cache/save@v4
         with:
           path: |
-            _opam
             _build
             _install
-          key: moonshot-cache-${{ runner.os }}-${{ hashFiles('oxcaml-dev.opam', 'dune-project') }}-${{ github.sha }}
+          key: moonshot-build-${{ runner.os }}-${{ github.sha }}
