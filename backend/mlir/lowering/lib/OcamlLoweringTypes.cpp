@@ -90,6 +90,7 @@ struct IntOpLowering : public OpConversionPattern<ocaml::IntOp> {
   }
 };
 
+// arith on tagged ints: + and - fix up the tag; * and / untag then retag
 struct BinOpLowering : public OpConversionPattern<ocaml::BinOp> {
   using OpConversionPattern<ocaml::BinOp>::OpConversionPattern;
 
@@ -150,6 +151,137 @@ struct BinOpLowering : public OpConversionPattern<ocaml::BinOp> {
   }
 };
 
+// i1 -> OCaml bool (false=1, true=3): (zext(b) << 1) | 1
+static Value tagBool(ConversionPatternRewriter &rewriter, Location loc,
+                     Value boolI1) {
+  auto i64Type = rewriter.getI64Type();
+  auto wide = LLVM::ZExtOp::create(rewriter, loc, i64Type, boolI1);
+  auto one = LLVM::ConstantOp::create(rewriter, loc, i64Type, 1ULL);
+  auto shifted =
+      LLVM::ShlOp::create(rewriter, loc, i64Type, wide.getResult(), one);
+  auto tagged =
+      LLVM::OrOp::create(rewriter, loc, i64Type, shifted.getResult(), one);
+  return tagged.getResult();
+}
+
+// signed icmp on the tagged words (tag-invariant), then tag the result
+struct CmpOpLowering : public OpConversionPattern<ocaml::CmpOp> {
+  using OpConversionPattern<ocaml::CmpOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(ocaml::CmpOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    LLVM::ICmpPredicate pred;
+    StringRef p = op.getPredicate();
+    if (p == "lt") {
+      pred = LLVM::ICmpPredicate::slt;
+    } else if (p == "gt") {
+      pred = LLVM::ICmpPredicate::sgt;
+    } else if (p == "eq") {
+      pred = LLVM::ICmpPredicate::eq;
+    } else if (p == "ne") {
+      pred = LLVM::ICmpPredicate::ne;
+    } else {
+      return rewriter.notifyMatchFailure(op, "unknown cmp predicate");
+    }
+
+    auto cmp = LLVM::ICmpOp::create(rewriter, op.getLoc(), pred,
+                                    adaptor.getLhs(), adaptor.getRhs());
+    rewriter.replaceOp(op, tagBool(rewriter, op.getLoc(), cmp.getResult()));
+    return success();
+  }
+};
+
+// unboxed f64 constant
+struct FloatOpLowering : public OpConversionPattern<ocaml::FloatOp> {
+  using OpConversionPattern<ocaml::FloatOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(ocaml::FloatOp op, OpAdaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto value = LLVM::ConstantOp::create(rewriter, op.getLoc(),
+                                          rewriter.getF64Type(),
+                                          op.getValueAttr());
+    rewriter.replaceOp(op, value.getResult());
+    return success();
+  }
+};
+
+// float compare, then tag. ne uses the unordered predicate so nan <> nan is
+// true, matching OCaml.
+struct FCmpOpLowering : public OpConversionPattern<ocaml::FCmpOp> {
+  using OpConversionPattern<ocaml::FCmpOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(ocaml::FCmpOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    LLVM::FCmpPredicate pred;
+    StringRef p = op.getPredicate();
+    if (p == "lt") {
+      pred = LLVM::FCmpPredicate::olt;
+    } else if (p == "gt") {
+      pred = LLVM::FCmpPredicate::ogt;
+    } else if (p == "eq") {
+      pred = LLVM::FCmpPredicate::oeq;
+    } else if (p == "ne") {
+      pred = LLVM::FCmpPredicate::une;
+    } else {
+      return rewriter.notifyMatchFailure(op, "unknown fcmp predicate");
+    }
+
+    auto cmp = LLVM::FCmpOp::create(rewriter, op.getLoc(), pred,
+                                    adaptor.getLhs(), adaptor.getRhs());
+    rewriter.replaceOp(op, tagBool(rewriter, op.getLoc(), cmp.getResult()));
+    return success();
+  }
+};
+
+// bitwise AND works directly on tagged bools (tag bit is always 1)
+struct AndOpLowering : public OpConversionPattern<ocaml::AndOp> {
+  using OpConversionPattern<ocaml::AndOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(ocaml::AndOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto result = LLVM::AndOp::create(rewriter, op.getLoc(),
+                                      rewriter.getI64Type(), adaptor.getLhs(),
+                                      adaptor.getRhs());
+    rewriter.replaceOp(op, result.getResult());
+    return success();
+  }
+};
+
+// bitwise OR on tagged bools
+struct OrOpLowering : public OpConversionPattern<ocaml::OrOp> {
+  using OpConversionPattern<ocaml::OrOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(ocaml::OrOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto result = LLVM::OrOp::create(rewriter, op.getLoc(),
+                                     rewriter.getI64Type(), adaptor.getLhs(),
+                                     adaptor.getRhs());
+    rewriter.replaceOp(op, result.getResult());
+    return success();
+  }
+};
+
+// xor x, 2 flips false (1) and true (3), tag bit preserved
+struct NotOpLowering : public OpConversionPattern<ocaml::NotOp> {
+  using OpConversionPattern<ocaml::NotOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(ocaml::NotOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto i64Type = rewriter.getI64Type();
+    auto two = LLVM::ConstantOp::create(rewriter, op.getLoc(), i64Type, 2ULL);
+    auto result = LLVM::XOrOp::create(rewriter, op.getLoc(), i64Type,
+                                      adaptor.getValue(), two.getResult());
+    rewriter.replaceOp(op, result.getResult());
+    return success();
+  }
+};
+
 } // namespace
 
 void populateOcamlLoweringTypesPatterns(RewritePatternSet &patterns,
@@ -159,6 +291,8 @@ void populateOcamlLoweringTypesPatterns(RewritePatternSet &patterns,
   patterns.add<StringOpLowering>(typeConverter, context, state);
   patterns.add<IntOpLowering>(context);
   patterns.add<BinOpLowering>(typeConverter, context);
+  patterns.add<FloatOpLowering, CmpOpLowering, FCmpOpLowering, AndOpLowering,
+               OrOpLowering, NotOpLowering>(typeConverter, context);
 }
 
 } // namespace ocaml
