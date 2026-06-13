@@ -1,6 +1,6 @@
 (library
  (name test_mlirize)
  (inline_tests (deps helpers.c))
- (modules helpers test_empty test_constants test_arith test_extern_call)
+ (modules helpers test_empty test_constants test_arith test_extern_call
+   test_compare test_logical test_float)
  (preprocess (pps ppx_expect)))
-
