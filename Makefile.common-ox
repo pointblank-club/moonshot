@@ -209,7 +209,7 @@ $(ocamldir)/otherlibs/dune: FORCE
           echo "(dirs (:standard \ systhreads4))" > $@; \
 	fi
 
-$(ocamldir)/dune.runtime_selection: 
+$(ocamldir)/dune.runtime_selection: FORCE
 	if [ "$(RUNTIME_DIR)" = "runtime4" ]; then \
           echo "(dirs (:standard \ runtime debugger))" > $@; \
 	else \
