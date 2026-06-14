@@ -10,90 +10,134 @@ using namespace mlir;
 
 namespace ocaml {
 
+/// Lowers a string constant to a global LLVM array and returns its GEP.
+LogicalResult StringType::constLowering(OpBuilder &builder, Attribute value,
+                                        Location loc, Value &result,
+                                        unsigned &stringIndex,
+                                        StringRef symNameVal) const {
+  auto stringAttr = llvm::dyn_cast<StringAttr>(value);
+  if (!stringAttr)
+    return failure();
+
+  std::string sym_name_str = symNameVal.str();
+  std::string globalName =
+      "caml" + sym_name_str + "." + std::to_string(++stringIndex);
+  std::string stringValue = stringAttr.getValue().str();
+  size_t dataWords = (stringValue.size() + 1 + 7) / 8;
+  uint64_t header = createBoxedHeader(dataWords);
+  unsigned padding = (dataWords * 8) - 1 - stringValue.size();
+  std::string globalValStr;
+  for (unsigned i = 0; i < 8; i++) {
+    globalValStr.push_back(static_cast<char>((header >> (i * 8)) & 0xff));
+  }
+  globalValStr.append(stringValue);
+  globalValStr.append(padding, '\0');
+  globalValStr.push_back(static_cast<char>(padding));
+
+  Operation *parentOp = builder.getBlock()->getParentOp();
+  ocaml::ModuleOp parent_module = nullptr;
+  while (parentOp) {
+    if (auto mod = llvm::dyn_cast<ocaml::ModuleOp>(parentOp)) {
+      parent_module = mod;
+      break;
+    }
+    parentOp = parentOp->getParentOp();
+  }
+  if (!parent_module)
+    return failure();
+
+  auto i8Type = builder.getI8Type();
+  auto ptrType = LLVM::LLVMPointerType::get(builder.getContext());
+  {
+    OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPoint(parent_module);
+    auto arrayType = LLVM::LLVMArrayType::get(i8Type, globalValStr.size());
+    LLVM::GlobalOp::create(builder, loc, arrayType, true,
+                           LLVM::Linkage::External, globalName,
+                           builder.getStringAttr(StringRef(
+                               globalValStr.data(), globalValStr.size())));
+  }
+
+  auto address = LLVM::AddressOfOp::create(builder, loc, ptrType, globalName);
+  auto dataAddress = LLVM::GEPOp::create(
+      builder, loc, ptrType, i8Type, address.getResult(),
+      ArrayRef<LLVM::GEPArg>{8}, LLVM::GEPNoWrapFlags::none, {});
+  result = dataAddress.getResult();
+  return success();
+}
+
+/// Lowers an integer constant to a tagged 63-bit LLVM constant.
+LogicalResult IntType::constLowering(OpBuilder &builder, Attribute value,
+                                     Location loc, Value &result) const {
+  auto intAttr = llvm::dyn_cast<IntegerAttr>(value);
+  if (!intAttr)
+    return failure();
+  auto raw = intAttr.getValue().getSExtValue();
+  auto tagged = tagUnboxedValue(raw);
+  auto constant =
+      LLVM::ConstantOp::create(builder, loc, builder.getI64Type(), tagged);
+  result = constant.getResult();
+  return success();
+}
+
 namespace {
 
 struct LoweringState {
   unsigned stringIndex = 0;
 };
 
-struct StringOpLowering : public OpConversionPattern<ocaml::StringOp> {
-  using OpConversionPattern<ocaml::StringOp>::OpConversionPattern;
+/// Lowers a constant operation using the type's constLowering interface.
+struct ConstantOpLowering : public OpConversionPattern<ocaml::ConstantOp> {
+  using OpConversionPattern<ocaml::ConstantOp>::OpConversionPattern;
 
-  StringOpLowering(const TypeConverter &typeConverter, MLIRContext *context,
-                   std::shared_ptr<LoweringState> state)
-      : OpConversionPattern<ocaml::StringOp>(typeConverter, context),
+  ConstantOpLowering(const TypeConverter &typeConverter, MLIRContext *context,
+                     std::shared_ptr<LoweringState> state)
+      : OpConversionPattern<ocaml::ConstantOp>(typeConverter, context),
         state(std::move(state)) {}
 
   LogicalResult
-  matchAndRewrite(ocaml::StringOp op, OpAdaptor,
+  matchAndRewrite(ocaml::ConstantOp op, OpAdaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    auto parent_module = op->getParentOfType<ocaml::ModuleOp>();
-    if (!parent_module) {
-      return rewriter.notifyMatchFailure(op,
-                                         "string has no ocaml.module parent");
+    Type resultType = op.getType();
+    if (auto unboxedType =
+            llvm::dyn_cast<ocaml::UnboxedTypeInterface>(resultType)) {
+      Value resultVal;
+      if (failed(unboxedType.constLowering(rewriter, op.getValue(), op.getLoc(),
+                                           resultVal)))
+        return failure();
+      rewriter.replaceOp(op, resultVal);
+      return success();
     }
-
-    std::string sym_name_str = "";
-    if (auto symName = parent_module.getSymName()) {
-      sym_name_str = symName->str();
+    if (auto boxedType =
+            llvm::dyn_cast<ocaml::BoxedTypeInterface>(resultType)) {
+      auto parent_module = op->getParentOfType<ocaml::ModuleOp>();
+      if (!parent_module) {
+        return rewriter.notifyMatchFailure(
+            op, "boxed type has no ocaml.module parent");
+      }
+      StringRef symNameVal = "";
+      if (auto symName = parent_module.getSymName()) {
+        symNameVal = *symName;
+      }
+      Value resultVal;
+      if (failed(boxedType.constLowering(rewriter, op.getValue(), op.getLoc(),
+                                         resultVal, state->stringIndex,
+                                         symNameVal)))
+        return failure();
+      rewriter.replaceOp(op, resultVal);
+      return success();
     }
-    std::string globalName =
-        "caml" + sym_name_str + "." + std::to_string(++state->stringIndex);
-    std::string stringValue = op.getValue().str();
-    size_t dataWords = (stringValue.size() + 1 + 7) / 8;
-    uint64_t header = (dataWords << 10) | 0x3fc;
-    unsigned padding = (dataWords * 8) - 1 - stringValue.size();
-    std::string value;
-    for (unsigned i = 0; i < 8; i++) {
-      value.push_back(static_cast<char>((header >> (i * 8)) & 0xff));
-    }
-    value.append(stringValue);
-    value.append(padding, '\0');
-    value.push_back(static_cast<char>(padding));
-
-    auto i8Type = rewriter.getI8Type();
-    auto ptrType = LLVM::LLVMPointerType::get(op.getContext());
-    OpBuilder::InsertionGuard guard(rewriter);
-    rewriter.setInsertionPoint(parent_module);
-    auto arrayType = LLVM::LLVMArrayType::get(i8Type, value.size());
-    LLVM::GlobalOp::create(
-        rewriter, op.getLoc(), arrayType, true, LLVM::Linkage::External,
-        globalName,
-        rewriter.getStringAttr(StringRef(value.data(), value.size())));
-
-    rewriter.setInsertionPoint(op);
-    auto address =
-        LLVM::AddressOfOp::create(rewriter, op.getLoc(), ptrType, globalName);
-    auto dataAddress = LLVM::GEPOp::create(
-        rewriter, op.getLoc(), ptrType, i8Type, address.getResult(),
-        ArrayRef<LLVM::GEPArg>{8}, LLVM::GEPNoWrapFlags::none, {});
-    rewriter.replaceOp(op, dataAddress.getResult());
-    return success();
+    return failure();
   }
 
 private:
   std::shared_ptr<LoweringState> state;
 };
 
-struct IntOpLowering : public OpConversionPattern<ocaml::IntOp> {
-  using OpConversionPattern<ocaml::IntOp>::OpConversionPattern;
-
-  LogicalResult
-  matchAndRewrite(ocaml::IntOp op, OpAdaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    auto raw = static_cast<uint64_t>(op.getValue());
-    auto tagged = static_cast<int64_t>((raw << 1) | 1ULL);
-    auto value = LLVM::ConstantOp::create(rewriter, op.getLoc(),
-                                          rewriter.getI64Type(), tagged);
-    rewriter.replaceOp(op, value.getResult());
-    return success();
-  }
-};
-
-// arith on tagged ints: + and - fix up the tag; * and / untag then retag
 struct BinOpLowering : public OpConversionPattern<ocaml::BinOp> {
   using OpConversionPattern<ocaml::BinOp>::OpConversionPattern;
 
+  /// Lowers a binary operation to tagged arithmetic in LLVM.
   LogicalResult
   matchAndRewrite(ocaml::BinOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
@@ -240,12 +284,12 @@ struct NotOpLowering : public OpConversionPattern<ocaml::NotOp> {
 
 } // namespace
 
+/// Populates rewrite patterns for OCaml types and constants.
 void populateOcamlLoweringTypesPatterns(RewritePatternSet &patterns,
                                         const TypeConverter &typeConverter,
                                         MLIRContext *context) {
   auto state = std::make_shared<LoweringState>();
-  patterns.add<StringOpLowering>(typeConverter, context, state);
-  patterns.add<IntOpLowering>(context);
+  patterns.add<ConstantOpLowering>(typeConverter, context, state);
   patterns.add<BinOpLowering>(typeConverter, context);
   patterns.add<CmpOpLowering, AndOpLowering, OrOpLowering, NotOpLowering>(
       typeConverter, context);

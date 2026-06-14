@@ -10,8 +10,8 @@ let%expect_test "constants" =
     {|
     ocaml.module @Constants {
       ocaml.entry {
-        %0 = ocaml.int 42 : !ocaml.int
-        %1 = ocaml.string "hello" : !ocaml.string
+        %0 = ocaml.constant 42 : !ocaml.int
+        %1 = ocaml.constant "hello" : !ocaml.string
       }
     }
     |}];

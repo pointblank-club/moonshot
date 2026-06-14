@@ -238,6 +238,12 @@ struct ConvertOCamlToBuiltin
     auto ptrType = LLVM::LLVMPointerType::get(context);
     auto i64Type = IntegerType::get(context, 64);
     typeConverter.addConversion([&](Type type) -> Type {
+      if (llvm::isa<ocaml::StringType>(type)) {
+        return ptrType;
+      }
+      if (llvm::isa<ocaml::IntType>(type)) {
+        return i64Type;
+      }
       if (auto opaque = llvm::dyn_cast<OpaqueType>(type)) {
         if (opaque.getDialectNamespace() == "ocaml") {
           if (opaque.getTypeData() == "string") {
@@ -253,13 +259,14 @@ struct ConvertOCamlToBuiltin
       }
       return type;
     });
+
     auto loweringState = std::make_shared<LoweringState>();
     {
       ConversionTarget target(*context);
       target.addLegalDialect<LLVM::LLVMDialect>();
       target.addLegalOp<ocaml::ModuleOp, ocaml::ExternOp, ocaml::EntryOp>();
-      target.addIllegalOp<ocaml::StringOp, ocaml::IntOp, ocaml::ExternCallOp,
-                          ocaml::BinOp, ocaml::CmpOp, ocaml::AndOp, ocaml::OrOp,
+      target.addIllegalOp<ocaml::ConstantOp, ocaml::ExternCallOp, ocaml::BinOp,
+                          ocaml::CmpOp, ocaml::AndOp, ocaml::OrOp,
                           ocaml::NotOp>();
 
       RewritePatternSet patterns(context);
