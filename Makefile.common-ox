@@ -69,8 +69,7 @@ endef
 
 
 .DEFAULT_GOAL := compiler
-.PHONY: boot-compiler boot-runtest runtime-stdlib compiler runtest runtest-llvmize runtest-mlirize runtest-dwarf mlir-dialect mlir-dialect-test FORCE
-FORCE:
+.PHONY: boot-compiler boot-runtest runtime-stdlib compiler runtest runtest-llvmize runtest-mlirize runtest-dwarf mlir-dialect mlir-dialect-test
 
 boot_targets = \
   $(boot_ocamlc) \
@@ -166,6 +165,7 @@ mlir-dialect:
 	  -DOCAML_INCLUDE_DIR=$(shell ocamlc -where) \
 	  -DCMAKE_BUILD_TYPE=Release >/dev/null
 	@cmake --build $(MLIR_DIALECT_BUILD) --target MLIROCaml
+	@cp $(MLIR_DIALECT_BUILD)/lib/libMLIROCaml.a backend/mlir/libMLIROCaml.a
 
 
 runtest-dwarf: compiler
@@ -176,7 +176,7 @@ runtest-dwarf: compiler
 duneconf/boot.ws: export contents = $(dune_boot_context)
 duneconf/runtime_stdlib.ws: export contents = $(dune_runtime_stdlib_context)
 duneconf/main.ws: export contents = $(dune_main_context)
-duneconf/%.ws: FORCE
+duneconf/%.ws: 
 	echo "$$contents" > $@
 
 # We need to disable ocaml/otherlibs when compiling with coverage, because we
@@ -187,7 +187,7 @@ duneconf/%.ws: FORCE
 # Also, Dune only allows one (data_only_dirs) declaration per file, so here we
 # have to account for the declaration that would already have been in
 # ocaml/dune.
-$(ocamldir)/duneconf/dirs-to-ignore.inc: FORCE
+$(ocamldir)/duneconf/dirs-to-ignore.inc: 
 	echo "(data_only_dirs yacc $(ocaml_subdirs_to_ignore))" > $@
 
 # Targets that should be prerequisites to any target that runs Dune
@@ -201,14 +201,14 @@ dune_config_targets = \
   $(ocamldir)/dune.runtime_selection \
   $(ocamldir)/otherlibs/dune
 
-$(ocamldir)/otherlibs/dune: FORCE
+$(ocamldir)/otherlibs/dune: 
 	if [ "$(RUNTIME_DIR)" = "runtime4" ]; then \
           echo "(dirs (:standard \ systhreads runtime_events))" > $@; \
 	else \
           echo "(dirs (:standard \ systhreads4))" > $@; \
 	fi
 
-$(ocamldir)/dune.runtime_selection: FORCE
+$(ocamldir)/dune.runtime_selection: 
 	if [ "$(RUNTIME_DIR)" = "runtime4" ]; then \
           echo "(dirs (:standard \ runtime debugger))" > $@; \
 	else \

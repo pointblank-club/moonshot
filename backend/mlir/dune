@@ -11,9 +11,7 @@
  (foreign_stubs
   (language c)
   (names caml_bindings_stubs))
- (c_library_flags
-  (-L%{project_root}/_build/mlir-dialect/lib
-   -lMLIROCaml)))
+ (foreign_archives MLIROCaml))
 
 (library
  (name mlir_lowering)

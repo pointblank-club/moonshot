@@ -41,7 +41,7 @@ struct StringOpLowering : public OpConversionPattern<ocaml::StringOp> {
         "caml" + sym_name_str + "." + std::to_string(++state->stringIndex);
     std::string stringValue = op.getValue().str();
     size_t dataWords = (stringValue.size() + 1 + 7) / 8;
-    uint64_t header = (dataWords << 10) | 0x3fc;
+    uint64_t header = (dataWords << 10) | 0xfc;
     unsigned padding = (dataWords * 8) - 1 - stringValue.size();
     std::string value;
     for (unsigned i = 0; i < 8; i++) {
