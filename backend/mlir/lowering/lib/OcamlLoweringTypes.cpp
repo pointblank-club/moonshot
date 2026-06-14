@@ -1,5 +1,6 @@
 #include "OCaml/OCamlDialect.h"
 
+#include <cstring>
 #include <memory>
 
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
@@ -66,6 +67,62 @@ LogicalResult StringType::constLowering(OpBuilder &builder, Attribute value,
   return success();
 }
 
+/// Lowers a float constant to a Double_tag boxed block and returns its GEP.
+LogicalResult FloatType::constLowering(OpBuilder &builder, Attribute value,
+                                       Location loc, Value &result,
+                                       unsigned &stringIndex,
+                                       StringRef symNameVal) const {
+  auto floatAttr = llvm::dyn_cast<FloatAttr>(value);
+  if (!floatAttr)
+    return failure();
+
+  std::string sym_name_str = symNameVal.str();
+  std::string globalName =
+      "caml" + sym_name_str + "." + std::to_string(++stringIndex);
+  double doubleValue = floatAttr.getValueAsDouble();
+  uint64_t bits;
+  std::memcpy(&bits, &doubleValue, sizeof(bits));
+  uint64_t header = createBoxedHeader(1);
+  std::string globalValStr;
+  for (unsigned i = 0; i < 8; i++) {
+    globalValStr.push_back(static_cast<char>((header >> (i * 8)) & 0xff));
+  }
+  for (unsigned i = 0; i < 8; i++) {
+    globalValStr.push_back(static_cast<char>((bits >> (i * 8)) & 0xff));
+  }
+
+  Operation *parentOp = builder.getBlock()->getParentOp();
+  ocaml::ModuleOp parent_module = nullptr;
+  while (parentOp) {
+    if (auto mod = llvm::dyn_cast<ocaml::ModuleOp>(parentOp)) {
+      parent_module = mod;
+      break;
+    }
+    parentOp = parentOp->getParentOp();
+  }
+  if (!parent_module)
+    return failure();
+
+  auto i8Type = builder.getI8Type();
+  auto ptrType = LLVM::LLVMPointerType::get(builder.getContext());
+  {
+    OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPoint(parent_module);
+    auto arrayType = LLVM::LLVMArrayType::get(i8Type, globalValStr.size());
+    LLVM::GlobalOp::create(builder, loc, arrayType, true,
+                           LLVM::Linkage::External, globalName,
+                           builder.getStringAttr(StringRef(
+                               globalValStr.data(), globalValStr.size())));
+  }
+
+  auto address = LLVM::AddressOfOp::create(builder, loc, ptrType, globalName);
+  auto dataAddress = LLVM::GEPOp::create(
+      builder, loc, ptrType, i8Type, address.getResult(),
+      ArrayRef<LLVM::GEPArg>{8}, LLVM::GEPNoWrapFlags::none, {});
+  result = dataAddress.getResult();
+  return success();
+}
+
 /// Lowers an integer constant to a tagged 63-bit LLVM constant.
 LogicalResult IntType::constLowering(OpBuilder &builder, Attribute value,
                                      Location loc, Value &result) const {
@@ -84,6 +141,7 @@ namespace {
 
 struct LoweringState {
   unsigned stringIndex = 0;
+  bool copyDoubleDeclared = false;
 };
 
 /// Lowers a constant operation using the type's constLowering interface.
@@ -195,6 +253,63 @@ struct BinOpLowering : public OpConversionPattern<ocaml::BinOp> {
   }
 };
 
+struct FloatBinOpLowering : public OpConversionPattern<ocaml::FloatBinOp> {
+  using OpConversionPattern<ocaml::FloatBinOp>::OpConversionPattern;
+
+  FloatBinOpLowering(const TypeConverter &typeConverter, MLIRContext *context,
+                     std::shared_ptr<LoweringState> state)
+      : OpConversionPattern<ocaml::FloatBinOp>(typeConverter, context),
+        state(std::move(state)) {}
+
+  /// Unbox both operands, perform the float op, rebox via caml_copy_double.
+  LogicalResult
+  matchAndRewrite(ocaml::FloatBinOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    Location loc = op.getLoc();
+    StringRef opName = op.getOpName();
+    auto f64Type = rewriter.getF64Type();
+    auto i64Type = rewriter.getI64Type();
+    auto ptrType = LLVM::LLVMPointerType::get(op.getContext());
+
+    auto lhs = LLVM::LoadOp::create(rewriter, loc, f64Type, adaptor.getLhs());
+    auto rhs = LLVM::LoadOp::create(rewriter, loc, f64Type, adaptor.getRhs());
+
+    Value computed;
+    if (opName == "+") {
+      computed = LLVM::FAddOp::create(rewriter, loc, f64Type, lhs, rhs);
+    } else if (opName == "-") {
+      computed = LLVM::FSubOp::create(rewriter, loc, f64Type, lhs, rhs);
+    } else if (opName == "*") {
+      computed = LLVM::FMulOp::create(rewriter, loc, f64Type, lhs, rhs);
+    } else if (opName == "/") {
+      computed = LLVM::FDivOp::create(rewriter, loc, f64Type, lhs, rhs);
+    } else {
+      return failure();
+    }
+
+    auto parent_module = op->getParentOfType<ocaml::ModuleOp>();
+    if (!parent_module)
+      return failure();
+    auto copyType = LLVM::LLVMFunctionType::get(i64Type, {f64Type}, false);
+    if (!state->copyDoubleDeclared) {
+      OpBuilder::InsertionGuard guard(rewriter);
+      rewriter.setInsertionPoint(parent_module);
+      LLVM::LLVMFuncOp::create(rewriter, loc, "caml_copy_double", copyType,
+                               LLVM::Linkage::External);
+      state->copyDoubleDeclared = true;
+    }
+    auto boxed = LLVM::CallOp::create(rewriter, loc, copyType,
+                                      "caml_copy_double", ValueRange{computed});
+    auto asPtr =
+        LLVM::IntToPtrOp::create(rewriter, loc, ptrType, boxed.getResult());
+    rewriter.replaceOp(op, asPtr.getResult());
+    return success();
+  }
+
+private:
+  std::shared_ptr<LoweringState> state;
+};
+
 // i1 -> OCaml bool (false=1, true=3): (zext(b) << 1) | 1
 static Value tagBool(ConversionPatternRewriter &rewriter, Location loc,
                      Value boolI1) {
@@ -290,6 +405,7 @@ void populateOcamlLoweringTypesPatterns(RewritePatternSet &patterns,
                                         MLIRContext *context) {
   auto state = std::make_shared<LoweringState>();
   patterns.add<ConstantOpLowering>(typeConverter, context, state);
+  patterns.add<FloatBinOpLowering>(typeConverter, context, state);
   patterns.add<BinOpLowering>(typeConverter, context);
   patterns.add<CmpOpLowering, AndOpLowering, OrOpLowering, NotOpLowering>(
       typeConverter, context);

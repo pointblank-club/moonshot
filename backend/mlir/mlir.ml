@@ -25,6 +25,10 @@ let ocaml_ocamlint_type ctx =
   let str = StringRef.of_string "!ocaml.int" in
   { Type.raw = Omlir_bindings.Ir.mlirTypeParseGet ctx.MlirContext.raw str.raw }
 
+let ocaml_float_type ctx =
+  let str = StringRef.of_string "!ocaml.float" in
+  { Type.raw = Omlir_bindings.Ir.mlirTypeParseGet ctx.MlirContext.raw str.raw }
+
 let ocaml_i64_type ctx =
   { Type.raw =
       Omlir_bindings.BuiltinTypes.mlirIntegerTypeGet ctx.MlirContext.raw 64
@@ -51,6 +55,18 @@ let create_int builder loc block value =
   append block op;
   Operation.get_result op 0
 
+let create_float builder loc block value =
+  let ctx = builder.Builders.OpBuilder.ctx in
+  let state = Operation.State.get "ocaml.constant" loc in
+  Operation.State.add_attributes state
+    [ Attribute.get_named
+        (Identifier.get ctx "value")
+        (Attribute.get_float ctx ~ty:(Type.f64 ctx) ~value) ];
+  Operation.State.add_results state [ocaml_float_type ctx];
+  let op = Operation.create state in
+  append block op;
+  Operation.get_result op 0
+
 let create_binop builder loc block op_name lhs rhs =
   let ctx = builder.Builders.OpBuilder.ctx in
   let state = Operation.State.get "ocaml.binop" loc in
@@ -61,12 +77,24 @@ let create_binop builder loc block op_name lhs rhs =
   append block op;
   Operation.get_result op 0
 
+let create_float_binop builder loc block op_name lhs rhs =
+  let ctx = builder.Builders.OpBuilder.ctx in
+  let state = Operation.State.get "ocaml.float_binop" loc in
+  Operation.State.add_attributes state [named_string_attr ctx "op_name" op_name];
+  Operation.State.add_operands state [lhs; rhs];
+  Operation.State.add_results state [ocaml_float_type ctx];
+  let op = Operation.create state in
+  append block op;
+  Operation.get_result op 0
+
 let map_ocaml_type_to_mlir ctx ty =
   match (Types.Transient_expr.repr ty).desc with
   | Types.Tconstr (path, _, _) when Path.same path Predef.path_int ->
     ocaml_ocamlint_type ctx
   | Types.Tconstr (path, _, _) when Path.same path Predef.path_string ->
     ocaml_string_type ctx
+  | Types.Tconstr (path, _, _) when Path.same path Predef.path_float ->
+    ocaml_float_type ctx
   | _ -> ocaml_value_type ctx
 
 let rec decompose_function_type ty =
@@ -199,6 +227,8 @@ let rec compile_expr env builder loc module_block block created_externs
   | Texp_constant (Const_int value) -> Some (create_int builder loc block value)
   | Texp_constant (Const_string (value, _, _)) ->
     Some (create_string builder loc block value)
+  | Texp_constant (Const_float value) ->
+    Some (create_float builder loc block (float_of_string value))
   | Texp_apply
       ( { exp_desc =
             Texp_ident
@@ -259,11 +289,21 @@ let rec compile_expr env builder loc module_block block created_externs
       | [lhs; rhs] -> Some (create_logical builder loc block op_name lhs rhs)
       | _ -> fallback ()
     in
+    let float_binop op_name =
+      match args with
+      | [lhs; rhs] ->
+        Some (create_float_binop builder loc block op_name lhs rhs)
+      | _ -> fallback ()
+    in
     match prim.Primitive.prim_name with
     | "%addint" -> binop "+"
     | "%subint" -> binop "-"
     | "%mulint" -> binop "*"
     | "%divint" -> binop "/"
+    | "%addfloat" -> float_binop "+"
+    | "%subfloat" -> float_binop "-"
+    | "%mulfloat" -> float_binop "*"
+    | "%divfloat" -> float_binop "/"
     | "%lessthan" -> cmp ~runtime_sym:"caml_lessthan" "lt"
     | "%greaterthan" -> cmp ~runtime_sym:"caml_greaterthan" "gt"
     | "%equal" -> cmp ~runtime_sym:"caml_equal" "eq"
