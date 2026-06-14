@@ -199,9 +199,9 @@ struct AndOpLowering : public OpConversionPattern<ocaml::AndOp> {
   LogicalResult
   matchAndRewrite(ocaml::AndOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    auto result = LLVM::AndOp::create(rewriter, op.getLoc(),
-                                      rewriter.getI64Type(), adaptor.getLhs(),
-                                      adaptor.getRhs());
+    auto result =
+        LLVM::AndOp::create(rewriter, op.getLoc(), rewriter.getI64Type(),
+                            adaptor.getLhs(), adaptor.getRhs());
     rewriter.replaceOp(op, result.getResult());
     return success();
   }
@@ -214,9 +214,9 @@ struct OrOpLowering : public OpConversionPattern<ocaml::OrOp> {
   LogicalResult
   matchAndRewrite(ocaml::OrOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    auto result = LLVM::OrOp::create(rewriter, op.getLoc(),
-                                     rewriter.getI64Type(), adaptor.getLhs(),
-                                     adaptor.getRhs());
+    auto result =
+        LLVM::OrOp::create(rewriter, op.getLoc(), rewriter.getI64Type(),
+                           adaptor.getLhs(), adaptor.getRhs());
     rewriter.replaceOp(op, result.getResult());
     return success();
   }
