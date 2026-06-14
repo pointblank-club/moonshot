@@ -32,7 +32,6 @@ CLEAN_DIRS = \
 
 CLEAN_FILES = \
   $(CLEAN_DUNE_WORKSPACES) \
-  backend/mlir/libMLIROCaml.a \
   duneconf/dirs-to-ignore.inc \
   duneconf/ox-extra.inc \
   dune.runtime_selection \

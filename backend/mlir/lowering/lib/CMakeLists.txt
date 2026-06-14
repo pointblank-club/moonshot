@@ -23,3 +23,30 @@ add_mlir_dialect_library(MLIROCaml
   MLIRFuncToLLVM
   MLIRReconcileUnrealizedCasts
 )
+
+add_library(dllMLIROCaml SHARED
+  OCamlDialect.cpp
+  OcamlLowering.cpp
+  OcamlLoweringTypes.cpp
+  OcamlInit.cpp
+)
+
+set_target_properties(dllMLIROCaml PROPERTIES PREFIX "")
+
+add_dependencies(dllMLIROCaml MLIROCamlIncGen MLIROCamlPassesIncGen)
+
+target_link_libraries(dllMLIROCaml PUBLIC
+  MLIRIR
+  MLIRPass
+  MLIRTransformUtils
+  MLIRLLVMDialect
+  MLIRFuncDialect
+  MLIRParser
+  MLIRRegisterAllDialects
+  MLIRRegisterAllExtensions
+  MLIRRegisterAllPasses
+  MLIRToLLVMIRTranslationRegistration
+  MLIRArithToLLVM
+  MLIRFuncToLLVM
+  MLIRReconcileUnrealizedCasts
+)

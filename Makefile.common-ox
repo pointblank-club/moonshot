@@ -165,8 +165,7 @@ mlir-dialect:
 	  -DLLVM_DIR=$(MLIR_LLVM_PREFIX)/lib/cmake/llvm \
 	  -DOCAML_INCLUDE_DIR=$(shell ocamlc -where) \
 	  -DCMAKE_BUILD_TYPE=Release >/dev/null
-	@cmake --build $(MLIR_DIALECT_BUILD) --target MLIROCaml
-	@cp $(MLIR_DIALECT_BUILD)/lib/libMLIROCaml.a backend/mlir/libMLIROCaml.a
+	@cmake --build $(MLIR_DIALECT_BUILD) --target MLIROCaml dllMLIROCaml
 
 
 runtest-dwarf: compiler
@@ -177,7 +176,7 @@ runtest-dwarf: compiler
 duneconf/boot.ws: export contents = $(dune_boot_context)
 duneconf/runtime_stdlib.ws: export contents = $(dune_runtime_stdlib_context)
 duneconf/main.ws: export contents = $(dune_main_context)
-duneconf/%.ws: 
+duneconf/%.ws:
 	echo "$$contents" > $@
 
 # We need to disable ocaml/otherlibs when compiling with coverage, because we
@@ -188,7 +187,7 @@ duneconf/%.ws:
 # Also, Dune only allows one (data_only_dirs) declaration per file, so here we
 # have to account for the declaration that would already have been in
 # ocaml/dune.
-$(ocamldir)/duneconf/dirs-to-ignore.inc: 
+$(ocamldir)/duneconf/dirs-to-ignore.inc:
 	echo "(data_only_dirs yacc $(ocaml_subdirs_to_ignore))" > $@
 
 # Targets that should be prerequisites to any target that runs Dune
