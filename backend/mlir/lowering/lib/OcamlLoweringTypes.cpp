@@ -23,9 +23,8 @@ LogicalResult StringType::constLowering(OpBuilder &builder, Attribute value,
   std::string globalName =
       "caml" + sym_name_str + "." + std::to_string(++stringIndex);
   std::string stringValue = stringAttr.getValue().str();
-  unsigned tag = getTag();
   size_t dataWords = (stringValue.size() + 1 + 7) / 8;
-  uint64_t header = createBoxedHeader(dataWords, tag);
+  uint64_t header = createBoxedHeader(dataWords);
   unsigned padding = (dataWords * 8) - 1 - stringValue.size();
   std::string globalValStr;
   for (unsigned i = 0; i < 8; i++) {

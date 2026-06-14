@@ -16,11 +16,10 @@ class BoxedType<string name, string typeMnemonic, int typeTag, list<Trait> trait
         DeclareTypeInterfaceMethods<BoxedTypeInterface, ["constLowering"]>
       ])> {
   let mnemonic = typeMnemonic;
-  int tag = typeTag;
   let extraClassDeclaration = [{
-    unsigned getTag() const { return }] # !cast<string>(typeTag) # [{; }
-    static uint64_t createBoxedHeader(size_t dataWords, unsigned tag) {
-      return (static_cast<uint64_t>(dataWords) << 10) | 0x300ULL | tag;
+    unsigned getTag() const { return }] # typeTag # [{; }
+    static uint64_t createBoxedHeader(size_t dataWords) {
+      return (static_cast<uint64_t>(dataWords) << 10) | 0x300ULL | }] # typeTag # [{;
     }
   }];
 }
