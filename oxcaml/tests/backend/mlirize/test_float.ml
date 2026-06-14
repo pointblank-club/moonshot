@@ -169,3 +169,125 @@ let%expect_test "float_arith_run" =
   in
   verify_stdout t;
   [%expect {| 7.5 |}]
+
+let%expect_test "float_cmp" =
+  let t =
+    test_compile ~name:"float_cmp"
+      ~code:
+        "\n\
+        \    external ( < ) : float -> float -> bool = \"%lessthan\"\n\
+        \    external ( = ) : float -> float -> bool = \"%equal\"\n\
+        \    let a = 1.5 < 2.0\n\
+        \    let b = 1.5 = 2.0\n\
+        \  "
+  in
+  verify_mlir t;
+  [%expect
+    {|
+    ocaml.module @Float_cmp {
+      ocaml.entry {
+        %0 = ocaml.constant 1.500000e+00 : f64 : !ocaml.float
+        %1 = ocaml.constant 2.000000e+00 : f64 : !ocaml.float
+        %2 = ocaml.float_cmp "lt" %0, %1 : !ocaml.float -> !ocaml.int
+        %3 = ocaml.constant 1.500000e+00 : f64 : !ocaml.float
+        %4 = ocaml.constant 2.000000e+00 : f64 : !ocaml.float
+        %5 = ocaml.float_cmp "eq" %3, %4 : !ocaml.float -> !ocaml.int
+      }
+    }
+    |}];
+  verify_std_mlir t;
+  [%expect
+    {|
+    module {
+      llvm.mlir.global external constant @camlFloat_cmp.1("\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\F8?") {addr_space = 0 : i32}
+      llvm.mlir.global external constant @camlFloat_cmp.2("\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\00@") {addr_space = 0 : i32}
+      llvm.mlir.global external constant @camlFloat_cmp.3("\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\F8?") {addr_space = 0 : i32}
+      llvm.mlir.global external constant @camlFloat_cmp.4("\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\00@") {addr_space = 0 : i32}
+      llvm.func @camlFloat_cmp__entry() -> i64 {
+        %0 = llvm.mlir.addressof @camlFloat_cmp.1 : !llvm.ptr
+        %1 = llvm.getelementptr %0[8] : (!llvm.ptr) -> !llvm.ptr, i8
+        %2 = llvm.mlir.addressof @camlFloat_cmp.2 : !llvm.ptr
+        %3 = llvm.getelementptr %2[8] : (!llvm.ptr) -> !llvm.ptr, i8
+        %4 = llvm.load %1 : !llvm.ptr -> f64
+        %5 = llvm.load %3 : !llvm.ptr -> f64
+        %6 = llvm.fcmp "olt" %4, %5 : f64
+        %7 = llvm.zext %6 : i1 to i64
+        %8 = llvm.mlir.constant(1 : i64) : i64
+        %9 = llvm.shl %7, %8 : i64
+        %10 = llvm.or %9, %8 : i64
+        %11 = llvm.mlir.addressof @camlFloat_cmp.3 : !llvm.ptr
+        %12 = llvm.getelementptr %11[8] : (!llvm.ptr) -> !llvm.ptr, i8
+        %13 = llvm.mlir.addressof @camlFloat_cmp.4 : !llvm.ptr
+        %14 = llvm.getelementptr %13[8] : (!llvm.ptr) -> !llvm.ptr, i8
+        %15 = llvm.load %12 : !llvm.ptr -> f64
+        %16 = llvm.load %14 : !llvm.ptr -> f64
+        %17 = llvm.fcmp "oeq" %15, %16 : f64
+        %18 = llvm.zext %17 : i1 to i64
+        %19 = llvm.mlir.constant(1 : i64) : i64
+        %20 = llvm.shl %18, %19 : i64
+        %21 = llvm.or %20, %19 : i64
+        %22 = llvm.mlir.constant(1 : i64) : i64
+        llvm.return %22 : i64
+      }
+      llvm.mlir.global external @camlFloat_cmp__gc_roots(0 : i64) {addr_space = 0 : i32} : i64
+      llvm.mlir.global external @camlFloat_cmp__data_begin(0 : i64) {addr_space = 0 : i32} : i64
+      llvm.mlir.global external @camlFloat_cmp__data_end(0 : i64) {addr_space = 0 : i32} : i64
+      llvm.mlir.global external @camlFloat_cmp__code_begin(0 : i64) {addr_space = 0 : i32} : i64
+      llvm.mlir.global external @camlFloat_cmp__code_end(0 : i64) {addr_space = 0 : i32} : i64
+      llvm.mlir.global external @camlFloat_cmp__frametable(0 : i64) {addr_space = 0 : i32} : i64
+    }
+    |}];
+  verify_llvm t;
+  [%expect
+    {|
+    ; ModuleID = 'LLVMDialectModule'
+    source_filename = "LLVMDialectModule"
+
+    @camlFloat_cmp.1 = constant [16 x i8] c"\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\F8?"
+    @camlFloat_cmp.2 = constant [16 x i8] c"\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\00@"
+    @camlFloat_cmp.3 = constant [16 x i8] c"\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\F8?"
+    @camlFloat_cmp.4 = constant [16 x i8] c"\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\00@"
+    @camlFloat_cmp__gc_roots = global i64 0
+    @camlFloat_cmp__data_begin = global i64 0
+    @camlFloat_cmp__data_end = global i64 0
+    @camlFloat_cmp__code_begin = global i64 0
+    @camlFloat_cmp__code_end = global i64 0
+    @camlFloat_cmp__frametable = global i64 0
+
+    define i64 @camlFloat_cmp__entry() {
+      %1 = load double, ptr getelementptr inbounds nuw (i8, ptr @camlFloat_cmp.1, i64 8), align 8
+      %2 = load double, ptr getelementptr inbounds nuw (i8, ptr @camlFloat_cmp.2, i64 8), align 8
+      %3 = fcmp olt double %1, %2
+      %4 = zext i1 %3 to i64
+      %5 = shl i64 %4, 1
+      %6 = or i64 %5, 1
+      %7 = load double, ptr getelementptr inbounds nuw (i8, ptr @camlFloat_cmp.3, i64 8), align 8
+      %8 = load double, ptr getelementptr inbounds nuw (i8, ptr @camlFloat_cmp.4, i64 8), align 8
+      %9 = fcmp oeq double %7, %8
+      %10 = zext i1 %9 to i64
+      %11 = shl i64 %10, 1
+      %12 = or i64 %11, 1
+      ret i64 1
+    }
+
+    !llvm.module.flags = !{!0}
+
+    !0 = !{i32 2, !"Debug Info Version", i32 3}
+    |}]
+
+let%expect_test "float_cmp_run" =
+  let t =
+    test_compile_and_run ~name:"float_cmp_run"
+      ~code:
+        "\n\
+        \    external ( < ) : float -> float -> bool = \"%lessthan\"\n\
+        \    external print_int : bool -> unit = \"print_int\"\n\
+        \    let () = print_int (1.5 < 2.0)\n\
+        \    let () = print_int (2.0 < 1.5)\n\
+        \  "
+  in
+  verify_stdout t;
+  [%expect {|
+    1
+    0
+    |}]

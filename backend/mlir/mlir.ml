@@ -133,6 +133,18 @@ let create_cmp builder loc block predicate lhs rhs =
   append block op;
   Operation.get_result op 0
 
+(* Compare two boxed floats, yielding an OCaml bool. *)
+let create_float_cmp builder loc block predicate lhs rhs =
+  let ctx = builder.Builders.OpBuilder.ctx in
+  let state = Operation.State.get "ocaml.float_cmp" loc in
+  Operation.State.add_attributes state
+    [named_string_attr ctx "predicate" predicate];
+  Operation.State.add_operands state [lhs; rhs];
+  Operation.State.add_results state [ocaml_ocamlint_type ctx];
+  let op = Operation.create state in
+  append block op;
+  Operation.get_result op 0
+
 (* ocaml.and / ocaml.or on two bools *)
 let create_logical builder loc block op_name lhs rhs =
   let ctx = builder.Builders.OpBuilder.ctx in
@@ -218,6 +230,8 @@ let is_constr_type path ty =
 
 let is_int_type = is_constr_type Predef.path_int
 
+let is_float_type = is_constr_type Predef.path_float
+
 let rec compile_expr env builder loc module_block block created_externs
     (expr : Typedtree.expression) =
   match expr.exp_desc with
@@ -269,12 +283,14 @@ let rec compile_expr env builder loc module_block block created_externs
       | [lhs; rhs] -> Some (create_binop builder loc block op_name lhs rhs)
       | _ -> fallback ()
     in
-    (* int compare lowers natively; anything else (strings, ...) goes through
-       the runtime compare (caml_lessthan, ...). *)
+    (* int and float compares lower natively; anything else (strings, ...) goes
+       through the runtime compare (caml_lessthan, ...). *)
     let cmp ?runtime_sym predicate =
       match args with
       | [lhs; rhs] when all_operands is_int_type ->
         Some (create_cmp builder loc block predicate lhs rhs)
+      | [lhs; rhs] when all_operands is_float_type ->
+        Some (create_float_cmp builder loc block predicate lhs rhs)
       | [lhs; rhs] -> (
         match runtime_sym with
         | Some sym ->

@@ -92,6 +92,15 @@ def CmpOp : OCaml_Op<"cmp", [AllTypesMatch<["lhs", "rhs"]>]> {
       "$predicate $lhs `,` $rhs attr-dict `:` type($lhs) `->` type($result)";
 }
 
+def FloatCmpOp : OCaml_Op<"float_cmp", [AllTypesMatch<["lhs", "rhs"]>]> {
+  // predicate is "lt", "gt", "eq" or "ne"
+  let summary = "Compare two OCaml floats, yielding an OCaml bool";
+  let arguments = (ins StrAttr:$predicate, AnyType:$lhs, AnyType:$rhs);
+  let results = (outs AnyType:$result);
+  let assemblyFormat =
+      "$predicate $lhs `,` $rhs attr-dict `:` type($lhs) `->` type($result)";
+}
+
 def AndOp : OCaml_Op<"and", [AllTypesMatch<["lhs", "rhs", "result"]>]> {
   let summary = "Logical AND of two OCaml bools";
   let arguments = (ins AnyType:$lhs, AnyType:$rhs);

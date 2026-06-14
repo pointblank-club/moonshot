@@ -351,6 +351,38 @@ struct CmpOpLowering : public OpConversionPattern<ocaml::CmpOp> {
   }
 };
 
+// Unbox both operands, ordered fcmp, then tag the result. "ne" uses the
+// unordered predicate so that nan <> nan is true, matching OCaml's (<>).
+struct FloatCmpOpLowering : public OpConversionPattern<ocaml::FloatCmpOp> {
+  using OpConversionPattern<ocaml::FloatCmpOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(ocaml::FloatCmpOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    Location loc = op.getLoc();
+    LLVM::FCmpPredicate pred;
+    StringRef p = op.getPredicate();
+    if (p == "lt") {
+      pred = LLVM::FCmpPredicate::olt;
+    } else if (p == "gt") {
+      pred = LLVM::FCmpPredicate::ogt;
+    } else if (p == "eq") {
+      pred = LLVM::FCmpPredicate::oeq;
+    } else if (p == "ne") {
+      pred = LLVM::FCmpPredicate::une;
+    } else {
+      return rewriter.notifyMatchFailure(op, "unknown float cmp predicate");
+    }
+
+    auto f64Type = rewriter.getF64Type();
+    auto lhs = LLVM::LoadOp::create(rewriter, loc, f64Type, adaptor.getLhs());
+    auto rhs = LLVM::LoadOp::create(rewriter, loc, f64Type, adaptor.getRhs());
+    auto cmp = LLVM::FCmpOp::create(rewriter, loc, pred, lhs, rhs);
+    rewriter.replaceOp(op, tagBool(rewriter, loc, cmp.getResult()));
+    return success();
+  }
+};
+
 // bitwise AND works directly on tagged bools (tag bit is always 1)
 struct AndOpLowering : public OpConversionPattern<ocaml::AndOp> {
   using OpConversionPattern<ocaml::AndOp>::OpConversionPattern;
@@ -407,8 +439,8 @@ void populateOcamlLoweringTypesPatterns(RewritePatternSet &patterns,
   patterns.add<ConstantOpLowering>(typeConverter, context, state);
   patterns.add<FloatBinOpLowering>(typeConverter, context, state);
   patterns.add<BinOpLowering>(typeConverter, context);
-  patterns.add<CmpOpLowering, AndOpLowering, OrOpLowering, NotOpLowering>(
-      typeConverter, context);
+  patterns.add<CmpOpLowering, FloatCmpOpLowering, AndOpLowering, OrOpLowering,
+               NotOpLowering>(typeConverter, context);
 }
 
 } // namespace ocaml
