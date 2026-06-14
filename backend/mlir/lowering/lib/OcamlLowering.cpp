@@ -259,7 +259,8 @@ struct ConvertOCamlToBuiltin
       target.addLegalDialect<LLVM::LLVMDialect>();
       target.addLegalOp<ocaml::ModuleOp, ocaml::ExternOp, ocaml::EntryOp>();
       target.addIllegalOp<ocaml::StringOp, ocaml::IntOp, ocaml::ExternCallOp,
-                          ocaml::BinOp>();
+                          ocaml::BinOp, ocaml::CmpOp, ocaml::AndOp, ocaml::OrOp,
+                          ocaml::NotOp>();
 
       RewritePatternSet patterns(context);
       patterns.add<EntryOpLowering>(context);

@@ -100,6 +100,39 @@ let map_repr_and_type_to_mlir ctx (_mode, repr) ocaml_ty_opt =
 
 let map_repr_to_type ctx repr = map_repr_and_type_to_mlir ctx repr None
 
+(* Compare two tagged ints. Comparing the tagged words directly works since (n
+   << 1) | 1 keeps order and equality. *)
+let create_cmp builder loc block predicate lhs rhs =
+  let ctx = builder.Builders.OpBuilder.ctx in
+  let state = Operation.State.get "ocaml.cmp" loc in
+  Operation.State.add_attributes state
+    [named_string_attr ctx "predicate" predicate];
+  Operation.State.add_operands state [lhs; rhs];
+  Operation.State.add_results state [ocaml_ocamlint_type ctx];
+  let op = Operation.create state in
+  append block op;
+  Operation.get_result op 0
+
+(* ocaml.and / ocaml.or on two bools *)
+let create_logical builder loc block op_name lhs rhs =
+  let ctx = builder.Builders.OpBuilder.ctx in
+  let state = Operation.State.get op_name loc in
+  Operation.State.add_operands state [lhs; rhs];
+  Operation.State.add_results state [ocaml_ocamlint_type ctx];
+  let op = Operation.create state in
+  append block op;
+  Operation.get_result op 0
+
+(* ocaml.not on a bool *)
+let create_not builder loc block value =
+  let ctx = builder.Builders.OpBuilder.ctx in
+  let state = Operation.State.get "ocaml.not" loc in
+  Operation.State.add_operands state [value];
+  Operation.State.add_results state [ocaml_ocamlint_type ctx];
+  let op = Operation.create state in
+  append block op;
+  Operation.get_result op 0
+
 let primitive_function_type builder prim =
   let ctx = builder.Builders.OpBuilder.ctx in
   let args =
@@ -108,22 +141,27 @@ let primitive_function_type builder prim =
   let res_type = map_repr_to_type ctx prim.Primitive.prim_native_repr_res in
   Builders.OpBuilder.get_function_type builder args [res_type]
 
-let create_extern builder loc block name prim func_type_opt =
+let create_extern ?target builder loc block name prim func_type_opt =
   let ctx = builder.Builders.OpBuilder.ctx in
   let func_type =
     match func_type_opt with
     | Some t -> t
     | None -> primitive_function_type builder prim
   in
+  let target =
+    match target with Some t -> t | None -> Primitive.native_name prim
+  in
   let state = Operation.State.get "ocaml.extern" loc in
   Operation.State.add_attributes state
     [ named_string_attr ctx "sym_name" name;
       named_type_attr ctx "function_type" func_type;
-      named_string_attr ctx "target" (Primitive.native_name prim) ];
+      named_string_attr ctx "target" target ];
   append block (Operation.create state)
 
-let create_extern_call builder loc module_block block created_externs name prim
-    val_type args =
+(* target overrides the C symbol; val_type is the OCaml type the result is
+   derived from. *)
+let create_extern_call ?target builder loc module_block block created_externs
+    name prim val_type args =
   let ctx = builder.Builders.OpBuilder.ctx in
   let _, ocaml_res = decompose_function_type val_type in
   let res_type =
@@ -137,7 +175,7 @@ let create_extern_call builder loc module_block block created_externs name prim
   (* Ensure module-level ocaml.extern with accurate function_type exists *)
   if not (StringSet.mem name !created_externs)
   then (
-    create_extern builder loc module_block name prim (Some func_type);
+    create_extern ?target builder loc module_block name prim (Some func_type);
     created_externs := StringSet.add name !created_externs);
   let state = Operation.State.get "ocaml.extern_call" loc in
   Operation.State.add_attributes state
@@ -152,6 +190,13 @@ let create_extern_call builder loc module_block block created_externs name prim
   let op = Operation.create state in
   append block op;
   Operation.get_result op 0
+
+let is_constr_type path ty =
+  match Types.get_desc ty with
+  | Types.Tconstr (p, [], _) -> Path.same p path
+  | _ -> false
+
+let is_int_type = is_constr_type Predef.path_int
 
 let rec compile_expr env builder loc module_block block created_externs
     (expr : Typedtree.expression) =
@@ -175,41 +220,72 @@ let rec compile_expr env builder loc module_block block created_externs
         _,
         _,
         _ ) -> (
-    let op_name_opt =
-      match prim.Primitive.prim_name with
-      | "%addint" -> Some "+"
-      | "%subint" -> Some "-"
-      | "%mulint" -> Some "*"
-      | "%divint" -> Some "/"
-      | _ -> None
+    let arg_exprs =
+      List.filter_map
+        (fun (_label, arg) ->
+          match arg with
+          | Typedtree.Arg (expr, _) -> Some expr
+          | Typedtree.Omitted _ -> None)
+        args
     in
-    match op_name_opt, args with
-    | ( Some op_name,
-        [(_, Typedtree.Arg (lhs_expr, _)); (_, Typedtree.Arg (rhs_expr, _))] )
-      -> (
-      match
-        ( compile_expr env builder loc module_block block created_externs
-            lhs_expr,
-          compile_expr env builder loc module_block block created_externs
-            rhs_expr )
-      with
-      | Some lhs_val, Some rhs_val ->
-        Some (create_binop builder loc block op_name lhs_val rhs_val)
-      | _ -> None)
-    | _ ->
-      let args =
-        List.filter_map
-          (fun (_label, arg) ->
-            match arg with
-            | Typedtree.Arg (expr, _) ->
-              compile_expr env builder loc module_block block created_externs
-                expr
-            | Typedtree.Omitted _ -> None)
-          args
-      in
+    let args =
+      List.map
+        (compile_expr env builder loc module_block block created_externs)
+        arg_exprs
+      |> List.filter_map Fun.id
+    in
+    let fallback () =
       Some
         (create_extern_call builder loc module_block block created_externs name
-           prim val_type args))
+           prim val_type args)
+    in
+    let all_operands pred =
+      List.for_all (fun e -> pred e.Typedtree.exp_type) arg_exprs
+    in
+    let binop op_name =
+      match args with
+      | [lhs; rhs] -> Some (create_binop builder loc block op_name lhs rhs)
+      | _ -> fallback ()
+    in
+    (* int compare lowers natively; anything else (strings, ...) goes through
+       the runtime compare (caml_lessthan, ...). *)
+    let cmp ?runtime_sym predicate =
+      match args with
+      | [lhs; rhs] when all_operands is_int_type ->
+        Some (create_cmp builder loc block predicate lhs rhs)
+      | [lhs; rhs] -> (
+        match runtime_sym with
+        | Some sym ->
+          Some
+            (create_extern_call ~target:sym builder loc module_block block
+               created_externs sym prim val_type [lhs; rhs])
+        | None -> fallback ())
+      | _ -> fallback ()
+    in
+    let logical op_name =
+      match args with
+      | [lhs; rhs] -> Some (create_logical builder loc block op_name lhs rhs)
+      | _ -> fallback ()
+    in
+    match prim.Primitive.prim_name with
+    | "%addint" -> binop "+"
+    | "%subint" -> binop "-"
+    | "%mulint" -> binop "*"
+    | "%divint" -> binop "/"
+    | "%lessthan" -> cmp ~runtime_sym:"caml_lessthan" "lt"
+    | "%greaterthan" -> cmp ~runtime_sym:"caml_greaterthan" "gt"
+    | "%equal" -> cmp ~runtime_sym:"caml_equal" "eq"
+    | "%notequal" -> cmp ~runtime_sym:"caml_notequal" "ne"
+    (* physical ==, != : ints only *)
+    | "%eq" -> cmp "eq"
+    | "%noteq" -> cmp "ne"
+    | "%sequand" -> logical "ocaml.and"
+    | "%sequor" -> logical "ocaml.or"
+    | "%boolnot" -> (
+      match args with
+      | [value] -> Some (create_not builder loc block value)
+      | _ -> fallback ())
+    | _ -> fallback ())
   | Texp_let (_, bindings, body) ->
     let new_env =
       List.fold_left

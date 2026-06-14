@@ -59,6 +59,36 @@ def IntOp : OCaml_Op<"int"> {
   let assemblyFormat = "$value attr-dict `:` type($result)";
 }
 
+def CmpOp : OCaml_Op<"cmp", [AllTypesMatch<["lhs", "rhs"]>]> {
+  // predicate is "lt", "gt", "eq" or "ne"
+  let summary = "Compare two tagged OCaml ints, yielding an OCaml bool";
+  let arguments = (ins StrAttr:$predicate, AnyType:$lhs, AnyType:$rhs);
+  let results = (outs AnyType:$result);
+  let assemblyFormat =
+      "$predicate $lhs `,` $rhs attr-dict `:` type($lhs) `->` type($result)";
+}
+
+def AndOp : OCaml_Op<"and", [AllTypesMatch<["lhs", "rhs", "result"]>]> {
+  let summary = "Logical AND of two OCaml bools";
+  let arguments = (ins AnyType:$lhs, AnyType:$rhs);
+  let results = (outs AnyType:$result);
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($result)";
+}
+
+def OrOp : OCaml_Op<"or", [AllTypesMatch<["lhs", "rhs", "result"]>]> {
+  let summary = "Logical OR of two OCaml bools";
+  let arguments = (ins AnyType:$lhs, AnyType:$rhs);
+  let results = (outs AnyType:$result);
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($result)";
+}
+
+def NotOp : OCaml_Op<"not", [AllTypesMatch<["value", "result"]>]> {
+  let summary = "Logical NOT of an OCaml bool";
+  let arguments = (ins AnyType:$value);
+  let results = (outs AnyType:$result);
+  let assemblyFormat = "$value attr-dict `:` type($result)";
+}
+
 def ExternCallOp : OCaml_Op<"extern_call"> {
   let summary = "A call to an OCaml external";
   let arguments = (ins SymbolRefAttr:$callee,
