@@ -131,3 +131,11 @@ def BinOp : OCaml_Op<"binop"> {
   let assemblyFormat =
       "$op_name $lhs `,` $rhs attr-dict `:` type($lhs) `,` type($rhs) `->` type($result)";
 }
+
+def FloatBinOp : OCaml_Op<"float_binop"> {
+  let summary = "An OCaml floating-point binary operation";
+  let arguments = (ins StrAttr:$op_name, AnyType:$lhs, AnyType:$rhs);
+  let results = (outs AnyType:$result);
+  let assemblyFormat =
+      "$op_name $lhs `,` $rhs attr-dict `:` type($lhs) `,` type($rhs) `->` type($result)";
+}

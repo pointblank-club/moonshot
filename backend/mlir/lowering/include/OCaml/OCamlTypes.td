@@ -38,6 +38,10 @@ def StringType : BoxedType<"String", "string", 252> {
   let summary = "OCaml string type";
 }
 
+def FloatType : BoxedType<"Float", "float", 253> {
+  let summary = "OCaml float type";
+}
+
 def IntType : UnboxedType<"Int", "int"> {
   let summary = "OCaml int type";
 }
