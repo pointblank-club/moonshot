@@ -21,22 +21,22 @@ let%expect_test "logical operators" =
       ocaml.entry {
         %0 = ocaml.constant 3 : !ocaml.int
         %1 = ocaml.constant 5 : !ocaml.int
-        %2 = ocaml.cmp "lt" %0, %1 : !ocaml.int -> !ocaml.int
+        %2 = ocaml.cmp "lt" %0, %1 : !ocaml.int -> !ocaml.bool
         %3 = ocaml.constant 2 : !ocaml.int
         %4 = ocaml.constant 1 : !ocaml.int
-        %5 = ocaml.cmp "lt" %3, %4 : !ocaml.int -> !ocaml.int
-        %6 = ocaml.and %2, %5 : !ocaml.int
+        %5 = ocaml.cmp "lt" %3, %4 : !ocaml.int -> !ocaml.bool
+        %6 = ocaml.and %2, %5 : !ocaml.bool
         %7 = ocaml.constant 1 : !ocaml.int
         %8 = ocaml.constant 2 : !ocaml.int
-        %9 = ocaml.cmp "lt" %7, %8 : !ocaml.int -> !ocaml.int
+        %9 = ocaml.cmp "lt" %7, %8 : !ocaml.int -> !ocaml.bool
         %10 = ocaml.constant 5 : !ocaml.int
         %11 = ocaml.constant 4 : !ocaml.int
-        %12 = ocaml.cmp "lt" %10, %11 : !ocaml.int -> !ocaml.int
-        %13 = ocaml.or %9, %12 : !ocaml.int
+        %12 = ocaml.cmp "lt" %10, %11 : !ocaml.int -> !ocaml.bool
+        %13 = ocaml.or %9, %12 : !ocaml.bool
         %14 = ocaml.constant 1 : !ocaml.int
         %15 = ocaml.constant 2 : !ocaml.int
-        %16 = ocaml.cmp "lt" %14, %15 : !ocaml.int -> !ocaml.int
-        %17 = ocaml.not %16 : !ocaml.int
+        %16 = ocaml.cmp "lt" %14, %15 : !ocaml.int -> !ocaml.bool
+        %17 = ocaml.not %16 : !ocaml.bool
       }
     }
     |}];

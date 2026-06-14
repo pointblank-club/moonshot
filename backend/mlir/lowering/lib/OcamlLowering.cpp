@@ -247,6 +247,9 @@ struct ConvertOCamlToBuiltin
       if (llvm::isa<ocaml::IntType>(type)) {
         return i64Type;
       }
+      if (llvm::isa<ocaml::BoolType>(type)) {
+        return i64Type;
+      }
       if (auto opaque = llvm::dyn_cast<OpaqueType>(type)) {
         if (opaque.getDialectNamespace() == "ocaml") {
           if (opaque.getTypeData() == "string") {
@@ -269,8 +272,8 @@ struct ConvertOCamlToBuiltin
       target.addLegalDialect<LLVM::LLVMDialect>();
       target.addLegalOp<ocaml::ModuleOp, ocaml::ExternOp, ocaml::EntryOp>();
       target.addIllegalOp<ocaml::ConstantOp, ocaml::ExternCallOp, ocaml::BinOp,
-                          ocaml::FloatBinOp, ocaml::CmpOp, ocaml::AndOp,
-                          ocaml::OrOp, ocaml::NotOp>();
+                          ocaml::FloatBinOp, ocaml::CmpOp, ocaml::FloatCmpOp,
+                          ocaml::AndOp, ocaml::OrOp, ocaml::NotOp>();
 
       RewritePatternSet patterns(context);
       patterns.add<EntryOpLowering>(context);

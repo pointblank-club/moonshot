@@ -29,6 +29,10 @@ let ocaml_float_type ctx =
   let str = StringRef.of_string "!ocaml.float" in
   { Type.raw = Omlir_bindings.Ir.mlirTypeParseGet ctx.MlirContext.raw str.raw }
 
+let ocaml_bool_type ctx =
+  let str = StringRef.of_string "!ocaml.bool" in
+  { Type.raw = Omlir_bindings.Ir.mlirTypeParseGet ctx.MlirContext.raw str.raw }
+
 let ocaml_i64_type ctx =
   { Type.raw =
       Omlir_bindings.BuiltinTypes.mlirIntegerTypeGet ctx.MlirContext.raw 64
@@ -95,6 +99,8 @@ let map_ocaml_type_to_mlir ctx ty =
     ocaml_string_type ctx
   | Types.Tconstr (path, _, _) when Path.same path Predef.path_float ->
     ocaml_float_type ctx
+  | Types.Tconstr (path, _, _) when Path.same path Predef.path_bool ->
+    ocaml_bool_type ctx
   | _ -> ocaml_value_type ctx
 
 let rec decompose_function_type ty =
@@ -128,7 +134,19 @@ let create_cmp builder loc block predicate lhs rhs =
   Operation.State.add_attributes state
     [named_string_attr ctx "predicate" predicate];
   Operation.State.add_operands state [lhs; rhs];
-  Operation.State.add_results state [ocaml_ocamlint_type ctx];
+  Operation.State.add_results state [ocaml_bool_type ctx];
+  let op = Operation.create state in
+  append block op;
+  Operation.get_result op 0
+
+(* Compare two boxed floats, yielding an OCaml bool. *)
+let create_float_cmp builder loc block predicate lhs rhs =
+  let ctx = builder.Builders.OpBuilder.ctx in
+  let state = Operation.State.get "ocaml.float_cmp" loc in
+  Operation.State.add_attributes state
+    [named_string_attr ctx "predicate" predicate];
+  Operation.State.add_operands state [lhs; rhs];
+  Operation.State.add_results state [ocaml_bool_type ctx];
   let op = Operation.create state in
   append block op;
   Operation.get_result op 0
@@ -138,7 +156,7 @@ let create_logical builder loc block op_name lhs rhs =
   let ctx = builder.Builders.OpBuilder.ctx in
   let state = Operation.State.get op_name loc in
   Operation.State.add_operands state [lhs; rhs];
-  Operation.State.add_results state [ocaml_ocamlint_type ctx];
+  Operation.State.add_results state [ocaml_bool_type ctx];
   let op = Operation.create state in
   append block op;
   Operation.get_result op 0
@@ -148,7 +166,7 @@ let create_not builder loc block value =
   let ctx = builder.Builders.OpBuilder.ctx in
   let state = Operation.State.get "ocaml.not" loc in
   Operation.State.add_operands state [value];
-  Operation.State.add_results state [ocaml_ocamlint_type ctx];
+  Operation.State.add_results state [ocaml_bool_type ctx];
   let op = Operation.create state in
   append block op;
   Operation.get_result op 0
@@ -218,6 +236,8 @@ let is_constr_type path ty =
 
 let is_int_type = is_constr_type Predef.path_int
 
+let is_float_type = is_constr_type Predef.path_float
+
 let rec compile_expr env builder loc module_block block created_externs
     (expr : Typedtree.expression) =
   match expr.exp_desc with
@@ -269,12 +289,14 @@ let rec compile_expr env builder loc module_block block created_externs
       | [lhs; rhs] -> Some (create_binop builder loc block op_name lhs rhs)
       | _ -> fallback ()
     in
-    (* int compare lowers natively; anything else (strings, ...) goes through
-       the runtime compare (caml_lessthan, ...). *)
+    (* int and float compares lower natively; anything else (strings, ...) goes
+       through the runtime compare (caml_lessthan, ...). *)
     let cmp ?runtime_sym predicate =
       match args with
       | [lhs; rhs] when all_operands is_int_type ->
         Some (create_cmp builder loc block predicate lhs rhs)
+      | [lhs; rhs] when all_operands is_float_type ->
+        Some (create_float_cmp builder loc block predicate lhs rhs)
       | [lhs; rhs] -> (
         match runtime_sym with
         | Some sym ->
