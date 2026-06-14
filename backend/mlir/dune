@@ -13,6 +13,16 @@
   (names caml_bindings_stubs))
  (foreign_archives MLIROCaml))
 
+(rule
+ (target libMLIROCaml.a)
+ (deps %{env:PWD=}/_build/mlir-dialect/lib/libMLIROCaml.a)
+ (action (copy %{deps} %{target})))
+
+(rule
+ (target dllMLIROCaml.so)
+ (deps %{env:PWD=}/_build/mlir-dialect/lib/dllMLIROCaml.so)
+ (action (copy %{deps} %{target})))
+
 (library
  (name mlir_lowering)
  (modules mlir)

@@ -19,7 +19,7 @@ let%expect_test "constants" =
   [%expect
     {|
     module {
-      llvm.mlir.global external constant @camlConstants.1("\FC\04\00\00\00\00\00\00hello\00\00\02") {addr_space = 0 : i32}
+      llvm.mlir.global external constant @camlConstants.1("\FC\07\00\00\00\00\00\00hello\00\00\02") {addr_space = 0 : i32}
       llvm.func @camlConstants__entry() -> i64 {
         %0 = llvm.mlir.constant(85 : i64) : i64
         %1 = llvm.mlir.addressof @camlConstants.1 : !llvm.ptr
@@ -41,7 +41,7 @@ let%expect_test "constants" =
     ; ModuleID = 'LLVMDialectModule'
     source_filename = "LLVMDialectModule"
 
-    @camlConstants.1 = constant [16 x i8] c"\FC\04\00\00\00\00\00\00hello\00\00\02"
+    @camlConstants.1 = constant [16 x i8] c"\FC\07\00\00\00\00\00\00hello\00\00\02"
     @camlConstants__gc_roots = global i64 0
     @camlConstants__data_begin = global i64 0
     @camlConstants__data_end = global i64 0

@@ -28,7 +28,7 @@ let%expect_test "extern call assignment" =
   [%expect
     {|
     module {
-      llvm.mlir.global external constant @camlExtern_call_assign.1("\FC\0C\00\00\00\00\00\00Hello from C puts!\00\00\00\00\00\05") {addr_space = 0 : i32}
+      llvm.mlir.global external constant @camlExtern_call_assign.1("\FC\0F\00\00\00\00\00\00Hello from C puts!\00\00\00\00\00\05") {addr_space = 0 : i32}
       llvm.func @caml_puts(!llvm.ptr) -> i64
       llvm.func @caml_puts_int(i64) -> i64
       llvm.func @camlExtern_call_assign__entry() -> i64 {
@@ -53,7 +53,7 @@ let%expect_test "extern call assignment" =
     ; ModuleID = 'LLVMDialectModule'
     source_filename = "LLVMDialectModule"
 
-    @camlExtern_call_assign.1 = constant [32 x i8] c"\FC\0C\00\00\00\00\00\00Hello from C puts!\00\00\00\00\00\05"
+    @camlExtern_call_assign.1 = constant [32 x i8] c"\FC\0F\00\00\00\00\00\00Hello from C puts!\00\00\00\00\00\05"
     @camlExtern_call_assign__gc_roots = global i64 0
     @camlExtern_call_assign__data_begin = global i64 0
     @camlExtern_call_assign__data_end = global i64 0
@@ -108,7 +108,7 @@ let%expect_test "extern call helpers" =
   [%expect
     {|
     module {
-      llvm.mlir.global external constant @camlExtern_call_helpers.1("\FC\08\00\00\00\00\00\00Hello, MLIR!\00\00\00\03") {addr_space = 0 : i32}
+      llvm.mlir.global external constant @camlExtern_call_helpers.1("\FC\0B\00\00\00\00\00\00Hello, MLIR!\00\00\00\03") {addr_space = 0 : i32}
       llvm.func @print_str(!llvm.ptr) -> i64
       llvm.func @print_int(i64) -> i64
       llvm.func @camlExtern_call_helpers__entry() -> i64 {
@@ -138,7 +138,7 @@ let%expect_test "extern call helpers" =
     ; ModuleID = 'LLVMDialectModule'
     source_filename = "LLVMDialectModule"
 
-    @camlExtern_call_helpers.1 = constant [24 x i8] c"\FC\08\00\00\00\00\00\00Hello, MLIR!\00\00\00\03"
+    @camlExtern_call_helpers.1 = constant [24 x i8] c"\FC\0B\00\00\00\00\00\00Hello, MLIR!\00\00\00\03"
     @camlExtern_call_helpers__gc_roots = global i64 0
     @camlExtern_call_helpers__data_begin = global i64 0
     @camlExtern_call_helpers__data_end = global i64 0
