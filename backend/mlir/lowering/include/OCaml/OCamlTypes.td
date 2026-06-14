@@ -46,6 +46,10 @@ def IntType : UnboxedType<"Int", "int"> {
   let summary = "OCaml int type";
 }
 
+def BoolType : OCaml_Type<"Bool", "bool"> {
+  let summary = "OCaml bool type";
+}
+
 def ConstantOp : OCaml_Op<"constant", [ConstantLike, Pure]> {
   let summary = "An OCaml constant definition";
   let arguments = (ins AnyAttr:$value);

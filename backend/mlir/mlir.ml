@@ -29,6 +29,10 @@ let ocaml_float_type ctx =
   let str = StringRef.of_string "!ocaml.float" in
   { Type.raw = Omlir_bindings.Ir.mlirTypeParseGet ctx.MlirContext.raw str.raw }
 
+let ocaml_bool_type ctx =
+  let str = StringRef.of_string "!ocaml.bool" in
+  { Type.raw = Omlir_bindings.Ir.mlirTypeParseGet ctx.MlirContext.raw str.raw }
+
 let ocaml_i64_type ctx =
   { Type.raw =
       Omlir_bindings.BuiltinTypes.mlirIntegerTypeGet ctx.MlirContext.raw 64
@@ -95,6 +99,8 @@ let map_ocaml_type_to_mlir ctx ty =
     ocaml_string_type ctx
   | Types.Tconstr (path, _, _) when Path.same path Predef.path_float ->
     ocaml_float_type ctx
+  | Types.Tconstr (path, _, _) when Path.same path Predef.path_bool ->
+    ocaml_bool_type ctx
   | _ -> ocaml_value_type ctx
 
 let rec decompose_function_type ty =
@@ -128,7 +134,7 @@ let create_cmp builder loc block predicate lhs rhs =
   Operation.State.add_attributes state
     [named_string_attr ctx "predicate" predicate];
   Operation.State.add_operands state [lhs; rhs];
-  Operation.State.add_results state [ocaml_ocamlint_type ctx];
+  Operation.State.add_results state [ocaml_bool_type ctx];
   let op = Operation.create state in
   append block op;
   Operation.get_result op 0
@@ -140,7 +146,7 @@ let create_float_cmp builder loc block predicate lhs rhs =
   Operation.State.add_attributes state
     [named_string_attr ctx "predicate" predicate];
   Operation.State.add_operands state [lhs; rhs];
-  Operation.State.add_results state [ocaml_ocamlint_type ctx];
+  Operation.State.add_results state [ocaml_bool_type ctx];
   let op = Operation.create state in
   append block op;
   Operation.get_result op 0
@@ -150,7 +156,7 @@ let create_logical builder loc block op_name lhs rhs =
   let ctx = builder.Builders.OpBuilder.ctx in
   let state = Operation.State.get op_name loc in
   Operation.State.add_operands state [lhs; rhs];
-  Operation.State.add_results state [ocaml_ocamlint_type ctx];
+  Operation.State.add_results state [ocaml_bool_type ctx];
   let op = Operation.create state in
   append block op;
   Operation.get_result op 0
@@ -160,7 +166,7 @@ let create_not builder loc block value =
   let ctx = builder.Builders.OpBuilder.ctx in
   let state = Operation.State.get "ocaml.not" loc in
   Operation.State.add_operands state [value];
-  Operation.State.add_results state [ocaml_ocamlint_type ctx];
+  Operation.State.add_results state [ocaml_bool_type ctx];
   let op = Operation.create state in
   append block op;
   Operation.get_result op 0

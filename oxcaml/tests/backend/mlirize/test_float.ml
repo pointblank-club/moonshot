@@ -188,10 +188,10 @@ let%expect_test "float_cmp" =
       ocaml.entry {
         %0 = ocaml.constant 1.500000e+00 : f64 : !ocaml.float
         %1 = ocaml.constant 2.000000e+00 : f64 : !ocaml.float
-        %2 = ocaml.float_cmp "lt" %0, %1 : !ocaml.float -> !ocaml.int
+        %2 = ocaml.float_cmp "lt" %0, %1 : !ocaml.float -> !ocaml.bool
         %3 = ocaml.constant 1.500000e+00 : f64 : !ocaml.float
         %4 = ocaml.constant 2.000000e+00 : f64 : !ocaml.float
-        %5 = ocaml.float_cmp "eq" %3, %4 : !ocaml.float -> !ocaml.int
+        %5 = ocaml.float_cmp "eq" %3, %4 : !ocaml.float -> !ocaml.bool
       }
     }
     |}];

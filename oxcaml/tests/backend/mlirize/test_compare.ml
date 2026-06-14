@@ -22,16 +22,16 @@ let%expect_test "int comparison" =
       ocaml.entry {
         %0 = ocaml.constant 2 : !ocaml.int
         %1 = ocaml.constant 9 : !ocaml.int
-        %2 = ocaml.cmp "lt" %0, %1 : !ocaml.int -> !ocaml.int
+        %2 = ocaml.cmp "lt" %0, %1 : !ocaml.int -> !ocaml.bool
         %3 = ocaml.constant 7 : !ocaml.int
         %4 = ocaml.constant 3 : !ocaml.int
-        %5 = ocaml.cmp "gt" %3, %4 : !ocaml.int -> !ocaml.int
+        %5 = ocaml.cmp "gt" %3, %4 : !ocaml.int -> !ocaml.bool
         %6 = ocaml.constant 4 : !ocaml.int
         %7 = ocaml.constant 4 : !ocaml.int
-        %8 = ocaml.cmp "eq" %6, %7 : !ocaml.int -> !ocaml.int
+        %8 = ocaml.cmp "eq" %6, %7 : !ocaml.int -> !ocaml.bool
         %9 = ocaml.constant 4 : !ocaml.int
         %10 = ocaml.constant 9 : !ocaml.int
-        %11 = ocaml.cmp "ne" %9, %10 : !ocaml.int -> !ocaml.int
+        %11 = ocaml.cmp "ne" %9, %10 : !ocaml.int -> !ocaml.bool
       }
     }
     |}];

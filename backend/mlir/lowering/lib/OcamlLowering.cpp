@@ -247,6 +247,9 @@ struct ConvertOCamlToBuiltin
       if (llvm::isa<ocaml::IntType>(type)) {
         return i64Type;
       }
+      if (llvm::isa<ocaml::BoolType>(type)) {
+        return i64Type;
+      }
       if (auto opaque = llvm::dyn_cast<OpaqueType>(type)) {
         if (opaque.getDialectNamespace() == "ocaml") {
           if (opaque.getTypeData() == "string") {
