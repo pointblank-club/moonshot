@@ -167,6 +167,11 @@ mlir-dialect:
 	  -DCMAKE_BUILD_TYPE=Release >/dev/null
 	@cmake --build $(MLIR_DIALECT_BUILD) --target MLIROCaml
 	@cp $(MLIR_DIALECT_BUILD)/lib/libMLIROCaml.a backend/mlir/libMLIROCaml.a
+# foreign_archives needs the shared lib too (for bytecode); build it from the
+# static archive plus the MLIR/LLVM shared libs.
+	@gcc -shared -o backend/mlir/dllMLIROCaml.so \
+	  -Wl,--whole-archive backend/mlir/libMLIROCaml.a -Wl,--no-whole-archive \
+	  -L$(MLIR_LLVM_PREFIX)/lib -lMLIR -lLLVM -lstdc++ -lm
 
 
 runtest-dwarf: compiler
