@@ -192,50 +192,6 @@ struct CmpOpLowering : public OpConversionPattern<ocaml::CmpOp> {
   }
 };
 
-// unboxed f64 constant
-struct FloatOpLowering : public OpConversionPattern<ocaml::FloatOp> {
-  using OpConversionPattern<ocaml::FloatOp>::OpConversionPattern;
-
-  LogicalResult
-  matchAndRewrite(ocaml::FloatOp op, OpAdaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    auto value = LLVM::ConstantOp::create(rewriter, op.getLoc(),
-                                          rewriter.getF64Type(),
-                                          op.getValueAttr());
-    rewriter.replaceOp(op, value.getResult());
-    return success();
-  }
-};
-
-// float compare, then tag. ne uses the unordered predicate so nan <> nan is
-// true, matching OCaml.
-struct FCmpOpLowering : public OpConversionPattern<ocaml::FCmpOp> {
-  using OpConversionPattern<ocaml::FCmpOp>::OpConversionPattern;
-
-  LogicalResult
-  matchAndRewrite(ocaml::FCmpOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    LLVM::FCmpPredicate pred;
-    StringRef p = op.getPredicate();
-    if (p == "lt") {
-      pred = LLVM::FCmpPredicate::olt;
-    } else if (p == "gt") {
-      pred = LLVM::FCmpPredicate::ogt;
-    } else if (p == "eq") {
-      pred = LLVM::FCmpPredicate::oeq;
-    } else if (p == "ne") {
-      pred = LLVM::FCmpPredicate::une;
-    } else {
-      return rewriter.notifyMatchFailure(op, "unknown fcmp predicate");
-    }
-
-    auto cmp = LLVM::FCmpOp::create(rewriter, op.getLoc(), pred,
-                                    adaptor.getLhs(), adaptor.getRhs());
-    rewriter.replaceOp(op, tagBool(rewriter, op.getLoc(), cmp.getResult()));
-    return success();
-  }
-};
-
 // bitwise AND works directly on tagged bools (tag bit is always 1)
 struct AndOpLowering : public OpConversionPattern<ocaml::AndOp> {
   using OpConversionPattern<ocaml::AndOp>::OpConversionPattern;
@@ -291,8 +247,8 @@ void populateOcamlLoweringTypesPatterns(RewritePatternSet &patterns,
   patterns.add<StringOpLowering>(typeConverter, context, state);
   patterns.add<IntOpLowering>(context);
   patterns.add<BinOpLowering>(typeConverter, context);
-  patterns.add<FloatOpLowering, CmpOpLowering, FCmpOpLowering, AndOpLowering,
-               OrOpLowering, NotOpLowering>(typeConverter, context);
+  patterns.add<CmpOpLowering, AndOpLowering, OrOpLowering, NotOpLowering>(
+      typeConverter, context);
 }
 
 } // namespace ocaml

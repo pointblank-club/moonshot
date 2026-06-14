@@ -15,7 +15,8 @@ let%expect_test "logical operators" =
         \  "
   in
   verify_mlir t;
-  [%expect {|
+  [%expect
+    {|
     ocaml.module @Logical {
       ocaml.entry {
         %0 = ocaml.int 3 : !ocaml.int
@@ -40,7 +41,8 @@ let%expect_test "logical operators" =
     }
     |}];
   verify_std_mlir t;
-  [%expect {|
+  [%expect
+    {|
     module {
       llvm.func @camlLogical__entry() -> i64 {
         %0 = llvm.mlir.constant(7 : i64) : i64
@@ -94,7 +96,8 @@ let%expect_test "logical operators" =
     }
     |}];
   verify_llvm t;
-  [%expect {|
+  [%expect
+    {|
     ; ModuleID = 'LLVMDialectModule'
     source_filename = "LLVMDialectModule"
 

@@ -249,9 +249,6 @@ struct ConvertOCamlToBuiltin
           if (opaque.getTypeData() == "value") {
             return i64Type;
           }
-          if (opaque.getTypeData() == "float") {
-            return Float64Type::get(context);
-          }
         }
       }
       return type;
@@ -261,9 +258,8 @@ struct ConvertOCamlToBuiltin
       ConversionTarget target(*context);
       target.addLegalDialect<LLVM::LLVMDialect>();
       target.addLegalOp<ocaml::ModuleOp, ocaml::ExternOp, ocaml::EntryOp>();
-      target.addIllegalOp<ocaml::StringOp, ocaml::IntOp, ocaml::FloatOp,
-                          ocaml::ExternCallOp, ocaml::BinOp, ocaml::CmpOp,
-                          ocaml::FCmpOp, ocaml::AndOp, ocaml::OrOp,
+      target.addIllegalOp<ocaml::StringOp, ocaml::IntOp, ocaml::ExternCallOp,
+                          ocaml::BinOp, ocaml::CmpOp, ocaml::AndOp, ocaml::OrOp,
                           ocaml::NotOp>();
 
       RewritePatternSet patterns(context);

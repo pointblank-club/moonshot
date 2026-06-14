@@ -16,7 +16,8 @@ let%expect_test "int comparison" =
         \  "
   in
   verify_mlir t;
-  [%expect {|
+  [%expect
+    {|
     ocaml.module @Compare {
       ocaml.entry {
         %0 = ocaml.int 2 : !ocaml.int
@@ -35,7 +36,8 @@ let%expect_test "int comparison" =
     }
     |}];
   verify_std_mlir t;
-  [%expect {|
+  [%expect
+    {|
     module {
       llvm.func @camlCompare__entry() -> i64 {
         %0 = llvm.mlir.constant(5 : i64) : i64
@@ -78,7 +80,8 @@ let%expect_test "int comparison" =
     }
     |}];
   verify_llvm t;
-  [%expect {|
+  [%expect
+    {|
     ; ModuleID = 'LLVMDialectModule'
     source_filename = "LLVMDialectModule"
 

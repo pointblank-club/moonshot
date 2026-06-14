@@ -38,18 +38,6 @@ let ocaml_i64_type ctx =
       Omlir_bindings.BuiltinTypes.mlirIntegerTypeGet ctx.MlirContext.raw 64
   }
 
-(* float, lowered to an unboxed f64 *)
-let ocaml_float_type ctx =
-  let namespace = StringRef.of_string "ocaml" in
-  let data = StringRef.of_string "float" in
-  { Type.raw =
-      Omlir_bindings.BuiltinTypes.mlirOpaqueTypeGet ctx.MlirContext.raw
-        namespace.raw data.raw
-  }
-
-let ocaml_f64_type ctx =
-  { Type.raw = Omlir_bindings.BuiltinTypes.mlirF64TypeGet ctx.MlirContext.raw }
-
 let create_string builder loc block value =
   let ctx = builder.Builders.OpBuilder.ctx in
   let state = Operation.State.get "ocaml.string" loc in
@@ -77,19 +65,6 @@ let create_binop builder loc block op_name lhs rhs =
   Operation.State.add_attributes state [named_string_attr ctx "op_name" op_name];
   Operation.State.add_operands state [lhs; rhs];
   Operation.State.add_results state [ocaml_ocamlint_type ctx];
-  let op = Operation.create state in
-  append block op;
-  Operation.get_result op 0
-
-let create_float builder loc block value =
-  let ctx = builder.Builders.OpBuilder.ctx in
-  let state = Operation.State.get "ocaml.float" loc in
-  Operation.State.add_attributes state
-    [
-      Attribute.get_named (Identifier.get ctx "value")
-        (Attribute.get_float ctx ~ty:(ocaml_f64_type ctx) ~value);
-    ];
-  Operation.State.add_results state [ ocaml_float_type ctx ];
   let op = Operation.create state in
   append block op;
   Operation.get_result op 0
@@ -125,15 +100,15 @@ let map_repr_and_type_to_mlir ctx (_mode, repr) ocaml_ty_opt =
 
 let map_repr_to_type ctx repr = map_repr_and_type_to_mlir ctx repr None
 
-(* op_name is "ocaml.cmp" (ints) or "ocaml.fcmp" (floats). Comparing tagged ints
-   directly works since (n << 1) | 1 keeps order and equality. *)
-let create_compare builder loc block op_name predicate lhs rhs =
+(* Compare two tagged ints. Comparing the tagged words directly works since (n
+   << 1) | 1 keeps order and equality. *)
+let create_cmp builder loc block predicate lhs rhs =
   let ctx = builder.Builders.OpBuilder.ctx in
-  let state = Operation.State.get op_name loc in
+  let state = Operation.State.get "ocaml.cmp" loc in
   Operation.State.add_attributes state
-    [ named_string_attr ctx "predicate" predicate ];
-  Operation.State.add_operands state [ lhs; rhs ];
-  Operation.State.add_results state [ ocaml_ocamlint_type ctx ];
+    [named_string_attr ctx "predicate" predicate];
+  Operation.State.add_operands state [lhs; rhs];
+  Operation.State.add_results state [ocaml_ocamlint_type ctx];
   let op = Operation.create state in
   append block op;
   Operation.get_result op 0
@@ -142,8 +117,8 @@ let create_compare builder loc block op_name predicate lhs rhs =
 let create_logical builder loc block op_name lhs rhs =
   let ctx = builder.Builders.OpBuilder.ctx in
   let state = Operation.State.get op_name loc in
-  Operation.State.add_operands state [ lhs; rhs ];
-  Operation.State.add_results state [ ocaml_ocamlint_type ctx ];
+  Operation.State.add_operands state [lhs; rhs];
+  Operation.State.add_results state [ocaml_ocamlint_type ctx];
   let op = Operation.create state in
   append block op;
   Operation.get_result op 0
@@ -152,8 +127,8 @@ let create_logical builder loc block op_name lhs rhs =
 let create_not builder loc block value =
   let ctx = builder.Builders.OpBuilder.ctx in
   let state = Operation.State.get "ocaml.not" loc in
-  Operation.State.add_operands state [ value ];
-  Operation.State.add_results state [ ocaml_ocamlint_type ctx ];
+  Operation.State.add_operands state [value];
+  Operation.State.add_results state [ocaml_ocamlint_type ctx];
   let op = Operation.create state in
   append block op;
   Operation.get_result op 0
@@ -198,7 +173,8 @@ let create_extern_call ?target builder loc module_block block created_externs
     Builders.OpBuilder.get_function_type builder arg_types [res_type]
   in
   (* Ensure module-level ocaml.extern with accurate function_type exists *)
-  if not (StringSet.mem name !created_externs) then (
+  if not (StringSet.mem name !created_externs)
+  then (
     create_extern ?target builder loc module_block name prim (Some func_type);
     created_externs := StringSet.add name !created_externs);
   let state = Operation.State.get "ocaml.extern_call" loc in
@@ -221,7 +197,6 @@ let is_constr_type path ty =
   | _ -> false
 
 let is_int_type = is_constr_type Predef.path_int
-let is_float_type = is_constr_type Predef.path_float
 
 let rec compile_expr env builder loc module_block block created_externs
     (expr : Typedtree.expression) =
@@ -232,8 +207,6 @@ let rec compile_expr env builder loc module_block block created_externs
   | Texp_constant (Const_int value) -> Some (create_int builder loc block value)
   | Texp_constant (Const_string (value, _, _)) ->
     Some (create_string builder loc block value)
-  | Texp_constant (Const_float value) ->
-    Some (create_float builder loc block (float_of_string value))
   | Texp_apply
       ( { exp_desc =
             Texp_ident
@@ -246,7 +219,7 @@ let rec compile_expr env builder loc module_block block created_externs
         args,
         _,
         _,
-        _ ) ->
+        _ ) -> (
     let arg_exprs =
       List.filter_map
         (fun (_label, arg) ->
@@ -271,50 +244,48 @@ let rec compile_expr env builder loc module_block block created_externs
     in
     let binop op_name =
       match args with
-      | [ lhs; rhs ] -> Some (create_binop builder loc block op_name lhs rhs)
+      | [lhs; rhs] -> Some (create_binop builder loc block op_name lhs rhs)
       | _ -> fallback ()
     in
-    (* int/float compare natively; anything else goes through the runtime
-       compare (caml_lessthan, ...). *)
+    (* int compare lowers natively; anything else (strings, ...) goes through
+       the runtime compare (caml_lessthan, ...). *)
     let cmp ?runtime_sym predicate =
       match args with
-      | [ lhs; rhs ] when all_operands is_int_type ->
-        Some (create_compare builder loc block "ocaml.cmp" predicate lhs rhs)
-      | [ lhs; rhs ] when all_operands is_float_type ->
-        Some (create_compare builder loc block "ocaml.fcmp" predicate lhs rhs)
-      | [ lhs; rhs ] -> (
+      | [lhs; rhs] when all_operands is_int_type ->
+        Some (create_cmp builder loc block predicate lhs rhs)
+      | [lhs; rhs] -> (
         match runtime_sym with
         | Some sym ->
           Some
             (create_extern_call ~target:sym builder loc module_block block
-               created_externs sym prim val_type [ lhs; rhs ])
+               created_externs sym prim val_type [lhs; rhs])
         | None -> fallback ())
       | _ -> fallback ()
     in
     let logical op_name =
       match args with
-      | [ lhs; rhs ] -> Some (create_logical builder loc block op_name lhs rhs)
+      | [lhs; rhs] -> Some (create_logical builder loc block op_name lhs rhs)
       | _ -> fallback ()
     in
-    (match prim.Primitive.prim_name with
-     | "%addint" -> binop "+"
-     | "%subint" -> binop "-"
-     | "%mulint" -> binop "*"
-     | "%divint" -> binop "/"
-     | "%lessthan" -> cmp ~runtime_sym:"caml_lessthan" "lt"
-     | "%greaterthan" -> cmp ~runtime_sym:"caml_greaterthan" "gt"
-     | "%equal" -> cmp ~runtime_sym:"caml_equal" "eq"
-     | "%notequal" -> cmp ~runtime_sym:"caml_notequal" "ne"
-     (* physical ==, != : ints only *)
-     | "%eq" -> cmp "eq"
-     | "%noteq" -> cmp "ne"
-     | "%sequand" -> logical "ocaml.and"
-     | "%sequor" -> logical "ocaml.or"
-     | "%boolnot" -> (
-       match args with
-       | [ value ] -> Some (create_not builder loc block value)
-       | _ -> fallback ())
-     | _ -> fallback ())
+    match prim.Primitive.prim_name with
+    | "%addint" -> binop "+"
+    | "%subint" -> binop "-"
+    | "%mulint" -> binop "*"
+    | "%divint" -> binop "/"
+    | "%lessthan" -> cmp ~runtime_sym:"caml_lessthan" "lt"
+    | "%greaterthan" -> cmp ~runtime_sym:"caml_greaterthan" "gt"
+    | "%equal" -> cmp ~runtime_sym:"caml_equal" "eq"
+    | "%notequal" -> cmp ~runtime_sym:"caml_notequal" "ne"
+    (* physical ==, != : ints only *)
+    | "%eq" -> cmp "eq"
+    | "%noteq" -> cmp "ne"
+    | "%sequand" -> logical "ocaml.and"
+    | "%sequor" -> logical "ocaml.or"
+    | "%boolnot" -> (
+      match args with
+      | [value] -> Some (create_not builder loc block value)
+      | _ -> fallback ())
+    | _ -> fallback ())
   | Texp_let (_, bindings, body) ->
     let new_env =
       List.fold_left
