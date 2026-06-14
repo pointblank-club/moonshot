@@ -10,12 +10,8 @@ let named_type_attr ctx name ty =
   Attribute.get_named (Identifier.get ctx name) (Attribute.get_type ty)
 
 let ocaml_string_type ctx =
-  let namespace = StringRef.of_string "ocaml" in
-  let data = StringRef.of_string "string" in
-  { Type.raw =
-      Omlir_bindings.BuiltinTypes.mlirOpaqueTypeGet ctx.MlirContext.raw
-        namespace.raw data.raw
-  }
+  let str = StringRef.of_string "!ocaml.string" in
+  { Type.raw = Omlir_bindings.Ir.mlirTypeParseGet ctx.MlirContext.raw str.raw }
 
 let ocaml_value_type ctx =
   let namespace = StringRef.of_string "ocaml" in
@@ -26,12 +22,8 @@ let ocaml_value_type ctx =
   }
 
 let ocaml_ocamlint_type ctx =
-  let namespace = StringRef.of_string "ocaml" in
-  let data = StringRef.of_string "int" in
-  { Type.raw =
-      Omlir_bindings.BuiltinTypes.mlirOpaqueTypeGet ctx.MlirContext.raw
-        namespace.raw data.raw
-  }
+  let str = StringRef.of_string "!ocaml.int" in
+  { Type.raw = Omlir_bindings.Ir.mlirTypeParseGet ctx.MlirContext.raw str.raw }
 
 let ocaml_i64_type ctx =
   { Type.raw =
@@ -40,7 +32,7 @@ let ocaml_i64_type ctx =
 
 let create_string builder loc block value =
   let ctx = builder.Builders.OpBuilder.ctx in
-  let state = Operation.State.get "ocaml.string" loc in
+  let state = Operation.State.get "ocaml.constant" loc in
   Operation.State.add_attributes state [named_string_attr ctx "value" value];
   Operation.State.add_results state [ocaml_string_type ctx];
   let op = Operation.create state in
@@ -49,7 +41,7 @@ let create_string builder loc block value =
 
 let create_int builder loc block value =
   let ctx = builder.Builders.OpBuilder.ctx in
-  let state = Operation.State.get "ocaml.int" loc in
+  let state = Operation.State.get "ocaml.constant" loc in
   Operation.State.add_attributes state
     [ Attribute.get_named
         (Identifier.get ctx "value")

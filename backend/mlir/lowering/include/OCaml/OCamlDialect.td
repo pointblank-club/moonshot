@@ -1,5 +1,6 @@
 include "mlir/IR/OpBase.td"
 include "mlir/IR/SymbolInterfaces.td"
+include "mlir/Interfaces/SideEffectInterfaces.td"
 
 def OCaml_Dialect : Dialect {
   let name = "ocaml";
@@ -8,10 +9,47 @@ def OCaml_Dialect : Dialect {
     The OCaml dialect represents OCaml-specific constructs during compilation.
   }];
   let cppNamespace = "::ocaml";
+  let useDefaultTypePrinterParser = 1;
 }
 
 class OCaml_Op<string mnemonic, list<Trait> traits = []> :
     Op<OCaml_Dialect, mnemonic, traits>;
+
+include "mlir/IR/AttrTypeBase.td"
+
+def BoxedTypeInterface : TypeInterface<"BoxedTypeInterface"> {
+  let cppNamespace = "::ocaml";
+  let methods = [
+    InterfaceMethod<
+      /*description=*/"Get the tag of the boxed type",
+      /*retTy=*/"unsigned",
+      /*methodName=*/"getTag",
+      /*args=*/(ins),
+      /*methodBody=*/"",
+      /*defaultImplementation=*/"return 0;"
+    >,
+    InterfaceMethod<
+      /*description=*/"Lower a constant of this boxed type to LLVM",
+      /*retTy=*/"::mlir::LogicalResult",
+      /*methodName=*/"constLowering",
+      /*args=*/(ins "::mlir::OpBuilder &":$builder, "::mlir::Attribute":$value, "::mlir::Location":$loc, "::mlir::Value &":$result, "unsigned &":$stringIndex, "::llvm::StringRef":$symNameVal)
+    >
+  ];
+}
+
+def UnboxedTypeInterface : TypeInterface<"UnboxedTypeInterface"> {
+  let cppNamespace = "::ocaml";
+  let methods = [
+    InterfaceMethod<
+      /*description=*/"Lower a constant of this unboxed type to LLVM",
+      /*retTy=*/"::mlir::LogicalResult",
+      /*methodName=*/"constLowering",
+      /*args=*/(ins "::mlir::OpBuilder &":$builder, "::mlir::Attribute":$value, "::mlir::Location":$loc, "::mlir::Value &":$result)
+    >
+  ];
+}
+
+include "OCamlTypes.td"
 
 def ModuleOp : OCaml_Op<"module", [
     IsolatedFromAbove,
@@ -43,20 +81,6 @@ def ExternOp : OCaml_Op<"extern", [
                        TypeAttrOf<FunctionType>:$function_type,
                        StrAttr:$target);
   let assemblyFormat = "$sym_name attr-dict `:` $function_type";
-}
-
-def StringOp : OCaml_Op<"string"> {
-  let summary = "An OCaml string literal";
-  let arguments = (ins StrAttr:$value);
-  let results = (outs AnyType:$result);
-  let assemblyFormat = "$value attr-dict `:` type($result)";
-}
-
-def IntOp : OCaml_Op<"int"> {
-  let summary = "An OCaml int literal";
-  let arguments = (ins I64Attr:$value);
-  let results = (outs AnyType:$result);
-  let assemblyFormat = "$value attr-dict `:` type($result)";
 }
 
 def CmpOp : OCaml_Op<"cmp", [AllTypesMatch<["lhs", "rhs"]>]> {

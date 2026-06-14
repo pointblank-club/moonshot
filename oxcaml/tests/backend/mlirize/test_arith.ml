@@ -16,9 +16,9 @@ let%expect_test "arithmetic" =
     {|
     ocaml.module @Arith {
       ocaml.entry {
-        %0 = ocaml.int 1 : !ocaml.int
-        %1 = ocaml.int 2 : !ocaml.int
-        %2 = ocaml.int 3 : !ocaml.int
+        %0 = ocaml.constant 1 : !ocaml.int
+        %1 = ocaml.constant 2 : !ocaml.int
+        %2 = ocaml.constant 3 : !ocaml.int
         %3 = ocaml.binop "*" %1, %2 : !ocaml.int, !ocaml.int -> !ocaml.int
         %4 = ocaml.binop "+" %0, %3 : !ocaml.int, !ocaml.int -> !ocaml.int
       }

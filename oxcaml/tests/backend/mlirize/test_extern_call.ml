@@ -16,7 +16,7 @@ let%expect_test "extern call assignment" =
     {|
     ocaml.module @Extern_call_assign {
       ocaml.entry {
-        %0 = ocaml.string "Hello from C puts!" : !ocaml.string
+        %0 = ocaml.constant "Hello from C puts!" : !ocaml.string
         %1 = ocaml.extern_call @puts(%0 : !ocaml.string) : (!ocaml.string) -> !ocaml.int -> !ocaml.int
         %2 = ocaml.extern_call @puts_int(%1 : !ocaml.int) : (!ocaml.int) -> !ocaml.value -> !ocaml.value
       }
@@ -93,10 +93,10 @@ let%expect_test "extern call helpers" =
     {|
     ocaml.module @Extern_call_helpers {
       ocaml.entry {
-        %0 = ocaml.string "Hello, MLIR!" : !ocaml.string
+        %0 = ocaml.constant "Hello, MLIR!" : !ocaml.string
         %1 = ocaml.extern_call @print_str(%0 : !ocaml.string) : (!ocaml.string) -> !ocaml.value -> !ocaml.value
-        %2 = ocaml.int 41 : !ocaml.int
-        %3 = ocaml.int 1 : !ocaml.int
+        %2 = ocaml.constant 41 : !ocaml.int
+        %3 = ocaml.constant 1 : !ocaml.int
         %4 = ocaml.binop "+" %2, %3 : !ocaml.int, !ocaml.int -> !ocaml.int
         %5 = ocaml.extern_call @print_int(%4 : !ocaml.int) : (!ocaml.int) -> !ocaml.value -> !ocaml.value
       }
