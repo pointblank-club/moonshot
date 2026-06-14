@@ -98,6 +98,7 @@ jobs:
         run: |
           opam exec -- autoconf
           opam exec -- ./configure --prefix=$(pwd)/_install
+          make reset-config
 
       - name: Check Formatting
         run: opam exec -- bash tools/ci/actions/check-fmt.sh
