@@ -552,4 +552,4 @@ boot-_install: runtime-stdlib
           -print0 | xargs -0 -I '{}' cp -f '{}' _install/lib/ocaml/compiler-libs
 
 reset-config:
-	rm -f dune.runtime_selection otherlibs/dune duneconf/dirs-to-ignore.inc duneconf/boot.ws duneconf/runtime_stdlib.ws duneconf/main.ws
+	rm -f $(ocamldir)/dune.runtime_selection $(ocamldir)/otherlibs/dune $(ocamldir)/duneconf/dirs-to-ignore.inc duneconf/*.ws
