@@ -46,7 +46,7 @@ def IntType : UnboxedType<"Int", "int"> {
   let summary = "OCaml int type";
 }
 
-def BoolType : OCaml_Type<"Bool", "bool"> {
+def BoolType : UnboxedType<"Bool", "bool"> {
   let summary = "OCaml bool type";
 }
 

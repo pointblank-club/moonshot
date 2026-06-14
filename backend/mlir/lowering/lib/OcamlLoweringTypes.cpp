@@ -137,6 +137,20 @@ LogicalResult IntType::constLowering(OpBuilder &builder, Attribute value,
   return success();
 }
 
+/// Lowers a bool constant (0/1) to a tagged immediate (false=1, true=3).
+LogicalResult BoolType::constLowering(OpBuilder &builder, Attribute value,
+                                      Location loc, Value &result) const {
+  auto intAttr = llvm::dyn_cast<IntegerAttr>(value);
+  if (!intAttr)
+    return failure();
+  auto raw = intAttr.getValue().getSExtValue();
+  auto tagged = tagUnboxedValue(raw);
+  auto constant =
+      LLVM::ConstantOp::create(builder, loc, builder.getI64Type(), tagged);
+  result = constant.getResult();
+  return success();
+}
+
 namespace {
 
 struct LoweringState {
