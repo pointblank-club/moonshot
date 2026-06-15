@@ -238,16 +238,10 @@ struct ConvertOCamlToBuiltin
     auto ptrType = LLVM::LLVMPointerType::get(context);
     auto i64Type = IntegerType::get(context, 64);
     typeConverter.addConversion([&](Type type) -> Type {
-      if (llvm::isa<ocaml::StringType>(type)) {
+      if (llvm::isa<ocaml::BoxedTypeInterface>(type)) {
         return ptrType;
       }
-      if (llvm::isa<ocaml::FloatType>(type)) {
-        return ptrType;
-      }
-      if (llvm::isa<ocaml::IntType>(type)) {
-        return i64Type;
-      }
-      if (llvm::isa<ocaml::BoolType>(type)) {
+      if (llvm::isa<ocaml::UnboxedTypeInterface>(type)) {
         return i64Type;
       }
       if (auto opaque = llvm::dyn_cast<OpaqueType>(type)) {
