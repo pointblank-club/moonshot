@@ -1,56 +1,11 @@
+#ifndef OCAML_DIALECT
+#define OCAML_DIALECT
+
 include "mlir/IR/OpBase.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
-def OCaml_Dialect : Dialect {
-  let name = "ocaml";
-  let summary = "The OCaml Dialect";
-  let description = [{
-    The OCaml dialect represents OCaml-specific constructs during compilation.
-  }];
-  let cppNamespace = "::ocaml";
-  let useDefaultTypePrinterParser = 1;
-}
-
-class OCaml_Op<string mnemonic, list<Trait> traits = []> :
-    Op<OCaml_Dialect, mnemonic, traits>;
-
-include "mlir/IR/AttrTypeBase.td"
-
-def BoxedTypeInterface : TypeInterface<"BoxedTypeInterface"> {
-  let cppNamespace = "::ocaml";
-  let methods = [
-    InterfaceMethod<
-      /*description=*/"Get the tag of the boxed type",
-      /*retTy=*/"unsigned",
-      /*methodName=*/"getTag",
-      /*args=*/(ins),
-      /*methodBody=*/"",
-      /*defaultImplementation=*/"return 0;"
-    >,
-    InterfaceMethod<
-      /*description=*/"Lower a constant of this boxed type to LLVM",
-      /*retTy=*/"::mlir::LogicalResult",
-      /*methodName=*/"constLowering",
-      /*args=*/(ins "::mlir::OpBuilder &":$builder, "::mlir::Attribute":$value, "::mlir::Location":$loc, "::mlir::Value &":$result, "unsigned &":$stringIndex, "::llvm::StringRef":$symNameVal)
-    >
-  ];
-}
-
-def UnboxedTypeInterface : TypeInterface<"UnboxedTypeInterface"> {
-  let cppNamespace = "::ocaml";
-  let methods = [
-    InterfaceMethod<
-      /*description=*/"Lower a constant of this unboxed type to LLVM",
-      /*retTy=*/"::mlir::LogicalResult",
-      /*methodName=*/"constLowering",
-      /*args=*/(ins "::mlir::OpBuilder &":$builder, "::mlir::Attribute":$value, "::mlir::Location":$loc, "::mlir::Value &":$result)
-    >
-  ];
-}
-
 include "OCamlTypes.td"
-
 def ModuleOp : OCaml_Op<"module", [
     IsolatedFromAbove,
     NoRegionArguments,
@@ -148,3 +103,12 @@ def FloatBinOp : OCaml_Op<"float_binop"> {
   let assemblyFormat =
       "$op_name $lhs `,` $rhs attr-dict `:` type($lhs) `,` type($rhs) `->` type($result)";
 }
+
+def ConstantOp : OCaml_Op<"constant", [ConstantLike, Pure]> {
+  let summary = "An OCaml constant definition";
+  let arguments = (ins AnyAttr:$value);
+  let results = (outs AnyType:$result);
+  let hasCustomAssemblyFormat = 1;
+}
+
+#endif // OCAML_DIALECT
