@@ -184,7 +184,6 @@ module Make (Backend : Optcomp_intf.Backend) : S = struct
           |> Option.map Global_module.Parameter_name.of_string
         in
         if not (Config.flambda || Config.flambda2) then Clflags.set_oclassic ();
-        compile_from_typed info typed ~as_arg_for ~keep_symbol_tables;
         if !Clflags.mlir_backend
         then begin
           let module_name =
@@ -192,7 +191,20 @@ module Make (Backend : Optcomp_intf.Backend) : S = struct
               (Compilation_unit.name info.module_name)
           in
           Compiler_hooks.execute Compiler_hooks.Mlirize
-            (module_name, output_prefix, impl, info.ppf_dump)
+            (module_name, output_prefix, impl, info.ppf_dump);
+          let cmx_filename =
+            Unit_info.Artifact.filename
+              (Unit_info.artifact info.target ~extension:Backend.ext_flambda_obj)
+          in
+          let main_module_block_format =
+            Lambda.Mb_struct
+              { mb_repr = Lambda.Module_value_only { field_count = 0 } }
+          in
+          Compilenv.save_unit_info cmx_filename ~main_module_block_format
+            ~arg_descr:None
+        end
+        else begin
+          compile_from_typed info typed ~as_arg_for ~keep_symbol_tables
         end
       in
       Compile_common.implementation
