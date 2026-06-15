@@ -383,6 +383,10 @@ struct CmpOpLowering : public OpConversionPattern<ocaml::CmpOp> {
         pred = LLVM::FCmpPredicate::olt;
       } else if (predicateStr == "gt") {
         pred = LLVM::FCmpPredicate::ogt;
+      } else if (predicateStr == "le") {
+        pred = LLVM::FCmpPredicate::ole;
+      } else if (predicateStr == "ge") {
+        pred = LLVM::FCmpPredicate::oge;
       } else if (predicateStr == "eq") {
         pred = LLVM::FCmpPredicate::oeq;
       } else if (predicateStr == "ne") {
@@ -398,6 +402,10 @@ struct CmpOpLowering : public OpConversionPattern<ocaml::CmpOp> {
         pred = LLVM::ICmpPredicate::slt;
       } else if (predicateStr == "gt") {
         pred = LLVM::ICmpPredicate::sgt;
+      } else if (predicateStr == "le") {
+        pred = LLVM::ICmpPredicate::sle;
+      } else if (predicateStr == "ge") {
+        pred = LLVM::ICmpPredicate::sge;
       } else if (predicateStr == "eq") {
         pred = LLVM::ICmpPredicate::eq;
       } else if (predicateStr == "ne") {

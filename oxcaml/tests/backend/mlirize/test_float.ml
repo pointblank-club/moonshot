@@ -176,8 +176,12 @@ let%expect_test "float_cmp" =
       ~code:
         "\n\
         \    external ( < ) : float -> float -> bool = \"%lessthan\"\n\
+        \    external ( <= ) : float -> float -> bool = \"%lessequal\"\n\
+        \    external ( >= ) : float -> float -> bool = \"%greaterequal\"\n\
         \    external ( = ) : float -> float -> bool = \"%equal\"\n\
         \    let a = 1.5 < 2.0\n\
+        \    let c = 1.5 <= 2.0\n\
+        \    let d = 2.0 >= 1.5\n\
         \    let b = 1.5 = 2.0\n\
         \  "
   in
@@ -191,7 +195,13 @@ let%expect_test "float_cmp" =
         %2 = ocaml.cmp "lt" %0, %1 : !ocaml.float -> !ocaml.bool
         %3 = ocaml.constant 1.500000e+00 : f64 : !ocaml.float
         %4 = ocaml.constant 2.000000e+00 : f64 : !ocaml.float
-        %5 = ocaml.cmp "eq" %3, %4 : !ocaml.float -> !ocaml.bool
+        %5 = ocaml.cmp "le" %3, %4 : !ocaml.float -> !ocaml.bool
+        %6 = ocaml.constant 2.000000e+00 : f64 : !ocaml.float
+        %7 = ocaml.constant 1.500000e+00 : f64 : !ocaml.float
+        %8 = ocaml.cmp "ge" %6, %7 : !ocaml.float -> !ocaml.bool
+        %9 = ocaml.constant 1.500000e+00 : f64 : !ocaml.float
+        %10 = ocaml.constant 2.000000e+00 : f64 : !ocaml.float
+        %11 = ocaml.cmp "eq" %9, %10 : !ocaml.float -> !ocaml.bool
       }
     }
     |}];
@@ -203,6 +213,10 @@ let%expect_test "float_cmp" =
       llvm.mlir.global external constant @camlFloat_cmp.2("\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\00@") {addr_space = 0 : i32}
       llvm.mlir.global external constant @camlFloat_cmp.3("\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\F8?") {addr_space = 0 : i32}
       llvm.mlir.global external constant @camlFloat_cmp.4("\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\00@") {addr_space = 0 : i32}
+      llvm.mlir.global external constant @camlFloat_cmp.5("\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\00@") {addr_space = 0 : i32}
+      llvm.mlir.global external constant @camlFloat_cmp.6("\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\F8?") {addr_space = 0 : i32}
+      llvm.mlir.global external constant @camlFloat_cmp.7("\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\F8?") {addr_space = 0 : i32}
+      llvm.mlir.global external constant @camlFloat_cmp.8("\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\00@") {addr_space = 0 : i32}
       llvm.func @camlFloat_cmp__entry() -> i64 {
         %0 = llvm.mlir.addressof @camlFloat_cmp.1 : !llvm.ptr
         %1 = llvm.getelementptr %0[8] : (!llvm.ptr) -> !llvm.ptr, i8
@@ -220,12 +234,32 @@ let%expect_test "float_cmp" =
         %13 = llvm.getelementptr %12[8] : (!llvm.ptr) -> !llvm.ptr, i8
         %14 = llvm.load %11 : !llvm.ptr -> f64
         %15 = llvm.load %13 : !llvm.ptr -> f64
-        %16 = llvm.fcmp "oeq" %14, %15 : f64
+        %16 = llvm.fcmp "ole" %14, %15 : f64
         %17 = llvm.mlir.constant(3 : i64) : i64
         %18 = llvm.mlir.constant(1 : i64) : i64
         %19 = llvm.select %16, %17, %18 : i1, i64
-        %20 = llvm.mlir.constant(1 : i64) : i64
-        llvm.return %20 : i64
+        %20 = llvm.mlir.addressof @camlFloat_cmp.5 : !llvm.ptr
+        %21 = llvm.getelementptr %20[8] : (!llvm.ptr) -> !llvm.ptr, i8
+        %22 = llvm.mlir.addressof @camlFloat_cmp.6 : !llvm.ptr
+        %23 = llvm.getelementptr %22[8] : (!llvm.ptr) -> !llvm.ptr, i8
+        %24 = llvm.load %21 : !llvm.ptr -> f64
+        %25 = llvm.load %23 : !llvm.ptr -> f64
+        %26 = llvm.fcmp "oge" %24, %25 : f64
+        %27 = llvm.mlir.constant(3 : i64) : i64
+        %28 = llvm.mlir.constant(1 : i64) : i64
+        %29 = llvm.select %26, %27, %28 : i1, i64
+        %30 = llvm.mlir.addressof @camlFloat_cmp.7 : !llvm.ptr
+        %31 = llvm.getelementptr %30[8] : (!llvm.ptr) -> !llvm.ptr, i8
+        %32 = llvm.mlir.addressof @camlFloat_cmp.8 : !llvm.ptr
+        %33 = llvm.getelementptr %32[8] : (!llvm.ptr) -> !llvm.ptr, i8
+        %34 = llvm.load %31 : !llvm.ptr -> f64
+        %35 = llvm.load %33 : !llvm.ptr -> f64
+        %36 = llvm.fcmp "oeq" %34, %35 : f64
+        %37 = llvm.mlir.constant(3 : i64) : i64
+        %38 = llvm.mlir.constant(1 : i64) : i64
+        %39 = llvm.select %36, %37, %38 : i1, i64
+        %40 = llvm.mlir.constant(1 : i64) : i64
+        llvm.return %40 : i64
       }
       llvm.mlir.global external @camlFloat_cmp__gc_roots(0 : i64) {addr_space = 0 : i32} : i64
       llvm.mlir.global external @camlFloat_cmp__data_begin(0 : i64) {addr_space = 0 : i32} : i64
@@ -245,6 +279,10 @@ let%expect_test "float_cmp" =
     @camlFloat_cmp.2 = constant [16 x i8] c"\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\00@"
     @camlFloat_cmp.3 = constant [16 x i8] c"\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\F8?"
     @camlFloat_cmp.4 = constant [16 x i8] c"\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\00@"
+    @camlFloat_cmp.5 = constant [16 x i8] c"\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\00@"
+    @camlFloat_cmp.6 = constant [16 x i8] c"\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\F8?"
+    @camlFloat_cmp.7 = constant [16 x i8] c"\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\F8?"
+    @camlFloat_cmp.8 = constant [16 x i8] c"\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\00@"
     @camlFloat_cmp__gc_roots = global i64 0
     @camlFloat_cmp__data_begin = global i64 0
     @camlFloat_cmp__data_end = global i64 0
@@ -259,8 +297,16 @@ let%expect_test "float_cmp" =
       %4 = select i1 %3, i64 3, i64 1
       %5 = load double, ptr getelementptr inbounds nuw (i8, ptr @camlFloat_cmp.3, i64 8), align 8
       %6 = load double, ptr getelementptr inbounds nuw (i8, ptr @camlFloat_cmp.4, i64 8), align 8
-      %7 = fcmp oeq double %5, %6
+      %7 = fcmp ole double %5, %6
       %8 = select i1 %7, i64 3, i64 1
+      %9 = load double, ptr getelementptr inbounds nuw (i8, ptr @camlFloat_cmp.5, i64 8), align 8
+      %10 = load double, ptr getelementptr inbounds nuw (i8, ptr @camlFloat_cmp.6, i64 8), align 8
+      %11 = fcmp oge double %9, %10
+      %12 = select i1 %11, i64 3, i64 1
+      %13 = load double, ptr getelementptr inbounds nuw (i8, ptr @camlFloat_cmp.7, i64 8), align 8
+      %14 = load double, ptr getelementptr inbounds nuw (i8, ptr @camlFloat_cmp.8, i64 8), align 8
+      %15 = fcmp oeq double %13, %14
+      %16 = select i1 %15, i64 3, i64 1
       ret i64 1
     }
 

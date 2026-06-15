@@ -346,6 +346,8 @@ let rec compile_expr env builder loc module_block block created_externs
     | "%divfloat" -> float_binop "/"
     | "%lessthan" -> cmp ~runtime_sym:"caml_lessthan" "lt"
     | "%greaterthan" -> cmp ~runtime_sym:"caml_greaterthan" "gt"
+    | "%lessequal" -> cmp ~runtime_sym:"caml_lessequal" "le"
+    | "%greaterequal" -> cmp ~runtime_sym:"caml_greaterequal" "ge"
     | "%equal" -> cmp ~runtime_sym:"caml_equal" "eq"
     | "%notequal" -> cmp ~runtime_sym:"caml_notequal" "ne"
     (* physical ==, != : ints only *)
