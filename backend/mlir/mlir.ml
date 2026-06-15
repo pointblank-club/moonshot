@@ -13,14 +13,6 @@ let ocaml_string_type ctx =
   let str = StringRef.of_string "!ocaml.string" in
   { Type.raw = Omlir_bindings.Ir.mlirTypeParseGet ctx.MlirContext.raw str.raw }
 
-let ocaml_value_type ctx =
-  let namespace = StringRef.of_string "ocaml" in
-  let data = StringRef.of_string "value" in
-  { Type.raw =
-      Omlir_bindings.BuiltinTypes.mlirOpaqueTypeGet ctx.MlirContext.raw
-        namespace.raw data.raw
-  }
-
 let ocaml_int_type ctx =
   let str = StringRef.of_string "!ocaml.int" in
   { Type.raw = Omlir_bindings.Ir.mlirTypeParseGet ctx.MlirContext.raw str.raw }
@@ -31,6 +23,10 @@ let ocaml_float_type ctx =
 
 let ocaml_bool_type ctx =
   let str = StringRef.of_string "!ocaml.bool" in
+  { Type.raw = Omlir_bindings.Ir.mlirTypeParseGet ctx.MlirContext.raw str.raw }
+
+let ocaml_unit_type ctx =
+  let str = StringRef.of_string "!ocaml.unit" in
   { Type.raw = Omlir_bindings.Ir.mlirTypeParseGet ctx.MlirContext.raw str.raw }
 
 let ocaml_i64_type ctx =
@@ -71,6 +67,21 @@ let create_float builder loc block value =
   append block op;
   Operation.get_result op 0
 
+let create_unit builder loc block =
+  let ctx = builder.Builders.OpBuilder.ctx in
+  let state = Operation.State.get "ocaml.constant" loc in
+  let unit_attr =
+    Omlir_bindings.BuiltinAttributes.mlirUnitAttrGet ctx.MlirContext.raw
+  in
+  Operation.State.add_attributes state
+    [ Attribute.get_named
+        (Identifier.get ctx "value")
+        { Attribute.raw = unit_attr } ];
+  Operation.State.add_results state [ocaml_unit_type ctx];
+  let op = Operation.create state in
+  append block op;
+  Operation.get_result op 0
+
 let create_binop builder loc block op_name lhs rhs =
   let ctx = builder.Builders.OpBuilder.ctx in
   let state = Operation.State.get "ocaml.binop" loc in
@@ -101,7 +112,11 @@ let map_ocaml_type_to_mlir ctx ty =
     ocaml_float_type ctx
   | Types.Tconstr (path, _, _) when Path.same path Predef.path_bool ->
     ocaml_bool_type ctx
-  | _ -> ocaml_value_type ctx
+  | Types.Tconstr (path, _, _) when Path.same path Predef.path_unit ->
+    ocaml_unit_type ctx
+  | _ ->
+    failwith
+      (Format.asprintf "Unimplemented type: %a" Printtyp.Compat.type_expr ty)
 
 let rec decompose_function_type ty =
   match (Types.Transient_expr.repr ty).desc with
@@ -120,9 +135,11 @@ let map_repr_and_type_to_mlir ctx (_mode, repr) ocaml_ty_opt =
       else
         match ocaml_ty_opt with
         | Some ty -> map_ocaml_type_to_mlir ctx ty
-        | None -> ocaml_value_type ctx)
-    | _ -> ocaml_value_type ctx
-  with _ -> ocaml_value_type ctx
+        | None -> failwith "Unimplemented type representation")
+    | _ -> failwith "Unimplemented representation"
+  with
+  | Failure _ as exn -> raise exn
+  | _ -> failwith "Failed to map type representation"
 
 let map_repr_to_type ctx repr = map_repr_and_type_to_mlir ctx repr None
 
@@ -221,8 +238,7 @@ let create_extern_call ?target builder loc module_block block created_externs
         (Identifier.get ctx "callee")
         ( Omlir_bindings.BuiltinAttributes.mlirFlatSymbolRefAttrGet
             ctx.MlirContext.raw (StringRef.of_string name).raw
-        |> fun raw -> { Attribute.raw } );
-      named_type_attr ctx "callee_type" func_type ];
+        |> fun raw -> { Attribute.raw } ) ];
   Operation.State.add_operands state args;
   Operation.State.add_results state [res_type];
   let op = Operation.create state in
@@ -249,6 +265,8 @@ let rec compile_expr env builder loc module_block block created_externs
     Some (create_string builder loc block value)
   | Texp_constant (Const_float value) ->
     Some (create_float builder loc block (float_of_string value))
+  | Texp_construct (_, { cstr_name = "()"; _ }, _, _) ->
+    Some (create_unit builder loc block)
   | Texp_apply
       ( { exp_desc =
             Texp_ident

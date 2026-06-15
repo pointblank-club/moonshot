@@ -54,13 +54,19 @@ def UnboxedTypeInterface : TypeInterface<"UnboxedTypeInterface"> {
           "::mlir::Location":$loc, "::mlir::Value &":$result),
       /*methodBody=*/"",
       /*defaultImplementation=*/[{
-        auto intAttr = ::llvm::dyn_cast<::mlir::IntegerAttr>(value);
-        if (!intAttr)
-          return ::mlir::failure();
-        auto raw = intAttr.getValue().getSExtValue();
+        int64_t raw = 0;
+        if (::llvm::isa<::mlir::UnitAttr>(value)) {
+          raw = 0;
+        } else {
+          auto intAttr = ::llvm::dyn_cast<::mlir::IntegerAttr>(value);
+          if (!intAttr)
+            return ::mlir::failure();
+          raw = intAttr.getValue().getSExtValue();
+        }
         auto tagged = $_type.tagUnboxedValue(raw);
         auto constant =
-            ::mlir::LLVM::ConstantOp::create(builder, loc, builder.getI64Type(), tagged);
+            ::mlir::LLVM::ConstantOp::create(
+                builder, loc, builder.getI64Type(), tagged);
         result = constant.getResult();
         return ::mlir::success();
       }]>];
@@ -108,6 +114,10 @@ def IntType : UnboxedType<"Int", "int"> {
 
 def BoolType : UnboxedType<"Bool", "bool"> {
   let summary = "OCaml bool type";
+}
+
+def UnitType : UnboxedType<"Unit", "unit"> {
+  let summary = "OCaml unit type";
 }
 
 #endif // OCAML_TYPES

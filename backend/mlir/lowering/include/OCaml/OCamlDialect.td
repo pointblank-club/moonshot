@@ -80,12 +80,10 @@ def NotOp : OCaml_Op<"not", [AllTypesMatch<["value", "result"]>]> {
 def ExternCallOp : OCaml_Op<"extern_call"> {
   let summary = "A call to an OCaml external";
   let arguments = (ins SymbolRefAttr:$callee,
-                       Variadic<AnyType>:$args,
-                       TypeAttrOf<FunctionType>:$callee_type);
+                       Variadic<AnyType>:$args);
   let results = (outs AnyType:$result);
   let assemblyFormat =
-      "$callee `(` $args `:` type($args) `)` attr-dict `:` "
-      # "$callee_type `->` type($result)";
+      "$callee `(` $args `)` attr-dict `:` functional-type($args, results)";
 }
 
 def BinOp : OCaml_Op<"binop"> {
