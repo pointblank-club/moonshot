@@ -13,9 +13,8 @@ namespace ocaml {
 
 /// Lowers a boxed constant to a global LLVM array and returns its GEP.
 LogicalResult BoxedTypeInterface::lowerBoxedConstant(
-    OpBuilder &builder, Location loc, Value &result,
-    unsigned &stringIndex, StringRef symNameVal,
-    StringRef globalValStr) const {
+    OpBuilder &builder, Location loc, Value &result, unsigned &stringIndex,
+    StringRef symNameVal, StringRef globalValStr) const {
   std::string sym_name_str = symNameVal.str();
   std::string globalName =
       "caml" + sym_name_str + "." + std::to_string(++stringIndex);
