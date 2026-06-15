@@ -74,14 +74,88 @@ struct EntryOpLowering : public OpConversionPattern<ocaml::EntryOp> {
     auto entryFunc = LLVM::LLVMFuncOp::create(
         rewriter, loc, entry_name, funcType, LLVM::Linkage::External);
 
-    auto *block = rewriter.createBlock(&entryFunc.getBody());
-    rewriter.mergeBlocks(&op.getBody().front(), block);
+    // Inline the entire multi-block region of ocaml.entry into entryFunc
+    rewriter.inlineRegionBefore(op.getBody(), entryFunc.getBody(),
+                                entryFunc.end());
 
-    rewriter.setInsertionPointToEnd(block);
+    // Append LLVM return to the last block of the function body
+    Block *lastBlock = &entryFunc.getBody().back();
+    rewriter.setInsertionPointToEnd(lastBlock);
     Value unit = LLVM::ConstantOp::create(rewriter, loc, i64Type, 1);
     LLVM::ReturnOp::create(rewriter, loc, unit);
 
     rewriter.eraseOp(op);
+    return success();
+  }
+};
+
+// Lowers `ocaml.if_then_else`.
+struct IfThenElseOpLowering : public OpConversionPattern<ocaml::IfThenElseOp> {
+  using OpConversionPattern<ocaml::IfThenElseOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(ocaml::IfThenElseOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    Location loc = op.getLoc();
+    auto i64Type = rewriter.getI64Type();
+
+    // Convert the result type (i64 for ints/bools, ptr for floats).
+    Type convertedResultType =
+        getTypeConverter()->convertType(op.getResult().getType());
+    if (!convertedResultType)
+      return rewriter.notifyMatchFailure(op, "failed to convert result type");
+
+    Value cond = adaptor.getCond();
+    auto trueConst = LLVM::ConstantOp::create(rewriter, loc, i64Type, 3LL);
+    Value llvmCond = LLVM::ICmpOp::create(
+        rewriter, loc, LLVM::ICmpPredicate::eq, cond, trueConst.getResult());
+
+    // Split the current block at the op to get the merge block.
+    // All ops after the if_then_else go into mergeBlock.
+    Block *currentBlock = op->getBlock();
+    Block *mergeBlock = rewriter.splitBlock(currentBlock, op->getIterator());
+    mergeBlock->addArgument(convertedResultType, loc);
+
+    // Create placeholder then/else blocks before mergeBlock.
+    Block *thenBlock = rewriter.createBlock(mergeBlock->getParent(),
+                                            Region::iterator(mergeBlock));
+    Block *elseBlock = rewriter.createBlock(mergeBlock->getParent(),
+                                            Region::iterator(mergeBlock));
+
+    // Emit cond_br at end of the original block.
+    rewriter.setInsertionPointToEnd(currentBlock);
+    LLVM::CondBrOp::create(rewriter, loc, llvmCond, thenBlock, ValueRange{},
+                           elseBlock, ValueRange{});
+
+    // Process then-region:
+    // 1. Extract yield value (dyn_cast fail gracefully, not abort).
+    // 2. mergeBlocks moves region ops into parent region.
+    // 3. Only then emit llvm.br, now in parent region, valid target.
+    Block *thenRegionBlock = &op.getThenRegion().front();
+    auto thenYield = dyn_cast<ocaml::YieldOp>(thenRegionBlock->getTerminator());
+    if (!thenYield)
+      return rewriter.notifyMatchFailure(
+          op, "then region terminator is not ocaml.yield");
+    Value thenVal = rewriter.getRemappedValue(thenYield.getValue());
+    rewriter.eraseOp(thenYield);
+    rewriter.mergeBlocks(thenRegionBlock, thenBlock, {});
+    rewriter.setInsertionPointToEnd(thenBlock);
+    LLVM::BrOp::create(rewriter, loc, ValueRange{thenVal}, mergeBlock);
+
+    // Process else-region: same pattern.
+    Block *elseRegionBlock = &op.getElseRegion().front();
+    auto elseYield = dyn_cast<ocaml::YieldOp>(elseRegionBlock->getTerminator());
+    if (!elseYield)
+      return rewriter.notifyMatchFailure(
+          op, "else region terminator is not ocaml.yield");
+    Value elseVal = rewriter.getRemappedValue(elseYield.getValue());
+    rewriter.eraseOp(elseYield);
+    rewriter.mergeBlocks(elseRegionBlock, elseBlock, {});
+    rewriter.setInsertionPointToEnd(elseBlock);
+    LLVM::BrOp::create(rewriter, loc, ValueRange{elseVal}, mergeBlock);
+
+    // Replace the op result with the merge block argument.
+    rewriter.replaceOp(op, mergeBlock->getArgument(0));
     return success();
   }
 };
@@ -485,4 +559,5 @@ void ocaml::populateOcamlOpsPatterns(
   patterns.add<BinOpLowering>(typeConverter, context, state);
   patterns.add<CmpOpLowering, AndOpLowering, OrOpLowering, NotOpLowering>(
       typeConverter, context);
+  patterns.add<IfThenElseOpLowering>(typeConverter, context);
 }

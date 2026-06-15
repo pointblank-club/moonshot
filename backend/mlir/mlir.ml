@@ -268,6 +268,13 @@ let is_int_type = is_constr_type Predef.path_int
 
 let is_float_type = is_constr_type Predef.path_float
 
+(* Emit ocaml.yield at the end of a branch block. *)
+let create_yield loc block value =
+  let state = Operation.State.get "ocaml.yield" loc in
+  Operation.State.add_operands state [value];
+  let op = Operation.create state in
+  append block op
+
 let rec compile_expr env builder module_block block created_externs
     (expr : Typedtree.expression) =
   let loc = file_line_col_loc builder expr.exp_loc.loc_start in
@@ -394,6 +401,57 @@ let rec compile_expr env builder module_block block created_externs
       (compile_expr env builder module_block block created_externs first
         : Value.t option);
     compile_expr env builder module_block block created_externs second
+  | Texp_ifthenelse (cond_expr, then_expr, else_expr_opt) -> (
+    match
+      compile_expr env builder module_block block created_externs cond_expr
+    with
+    | None -> None
+    | Some cond_val -> (
+      (* Result type *)
+      let ctx = builder.Builders.OpBuilder.ctx in
+      let result_type =
+        map_ocaml_type_to_mlir ctx then_expr.Typedtree.exp_type
+      in
+      (* Then-region: compile branch, emit yield, propagate None on failure *)
+      let then_region = Operation.Region.create () in
+      let then_block = Operation.Block.create () in
+      Operation.Region.append_owned_block then_region then_block;
+      match
+        compile_expr env builder module_block then_block created_externs then_expr
+      with
+      | None -> None
+      | Some then_val ->
+        create_yield loc then_block then_val;
+        (* Else-region *)
+        let else_region = Operation.Region.create () in
+        let else_block = Operation.Block.create () in
+        Operation.Region.append_owned_block else_region else_block;
+        let else_ok =
+          match else_expr_opt with
+          | Some else_expr -> (
+            match
+              compile_expr env builder module_block else_block created_externs else_expr
+            with
+            | None -> false
+            | Some else_val ->
+              create_yield loc else_block else_val;
+              true)
+          | None ->
+            (* No else branch: emit unit. *)
+            let unit_val = create_unit builder loc else_block in
+            create_yield loc else_block unit_val;
+            true
+        in
+        if not else_ok
+        then None
+        else
+          let state = Operation.State.get "ocaml.if_then_else" loc in
+          Operation.State.add_operands state [cond_val];
+          Operation.State.add_owned_regions state [then_region; else_region];
+          Operation.State.add_results state [result_type];
+          let op = Operation.create state in
+          append block op;
+          Some (Operation.get_result op 0)))
   | _ -> None
 
 let compile_structure builder module_block entry_block created_externs
