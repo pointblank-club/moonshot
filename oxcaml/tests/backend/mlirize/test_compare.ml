@@ -117,4 +117,129 @@ let%expect_test "int comparison" =
     !llvm.module.flags = !{!0}
 
     !0 = !{i32 2, !"Debug Info Version", i32 3}
+    |}];;
+
+let%expect_test "if-then-else basic" =
+  let t =
+    test_compile ~name:"if_then_else_basic"
+      ~code:
+        "\n\
+        \    external ( < ) : int -> int -> bool = \"%lessthan\"\n\
+        \    let x = if 3 < 5 then 10 else 20\n\
+        \  "
+  in
+  verify_mlir t;
+  [%expect
+    {|
+    ocaml.module @If_then_else_basic {
+      ocaml.entry {
+        %0 = ocaml.constant 3 : !ocaml.int
+        %1 = ocaml.constant 5 : !ocaml.int
+        %2 = ocaml.cmp "lt" %0, %1 : !ocaml.int -> !ocaml.bool
+        %3 = ocaml.if_then_else %2 : !ocaml.bool -> !ocaml.int {
+          %4 = ocaml.constant 10 : !ocaml.int
+          ocaml.yield %4 : !ocaml.int
+        } else {
+          %4 = ocaml.constant 20 : !ocaml.int
+          ocaml.yield %4 : !ocaml.int
+        }
+      }
+    }
+    |}];
+  verify_std_mlir t;
+  [%expect
+    {|
+    module {
+      llvm.func @camlIf_then_else_basic__entry() -> i64 {
+        %0 = llvm.mlir.constant(7 : i64) : i64
+        %1 = llvm.mlir.constant(11 : i64) : i64
+        %2 = llvm.icmp "slt" %0, %1 : i64
+        %3 = llvm.zext %2 : i1 to i64
+        %4 = llvm.mlir.constant(1 : i64) : i64
+        %5 = llvm.shl %3, %4 : i64
+        %6 = llvm.or %5, %4 : i64
+        %7 = llvm.mlir.constant(3 : i64) : i64
+        %8 = llvm.icmp "eq" %6, %7 : i64
+        llvm.cond_br %8, ^bb1, ^bb2
+      ^bb1:  // pred: ^bb0
+        %9 = llvm.mlir.constant(21 : i64) : i64
+        llvm.br ^bb3(%9 : i64)
+      ^bb2:  // pred: ^bb0
+        %10 = llvm.mlir.constant(41 : i64) : i64
+        llvm.br ^bb3(%10 : i64)
+      ^bb3(%11: i64):  // 2 preds: ^bb1, ^bb2
+        %12 = llvm.mlir.constant(1 : i64) : i64
+        llvm.return %12 : i64
+      }
+      llvm.mlir.global external @camlIf_then_else_basic__gc_roots(0 : i64) {addr_space = 0 : i32} : i64
+      llvm.mlir.global external @camlIf_then_else_basic__data_begin(0 : i64) {addr_space = 0 : i32} : i64
+      llvm.mlir.global external @camlIf_then_else_basic__data_end(0 : i64) {addr_space = 0 : i32} : i64
+      llvm.mlir.global external @camlIf_then_else_basic__code_begin(0 : i64) {addr_space = 0 : i32} : i64
+      llvm.mlir.global external @camlIf_then_else_basic__code_end(0 : i64) {addr_space = 0 : i32} : i64
+      llvm.mlir.global external @camlIf_then_else_basic__frametable(0 : i64) {addr_space = 0 : i32} : i64
+    }
+    |}];
+  verify_llvm t;
+  [%expect
+    {|
+    ; ModuleID = 'LLVMDialectModule'
+    source_filename = "LLVMDialectModule"
+
+    @camlIf_then_else_basic__gc_roots = global i64 0
+    @camlIf_then_else_basic__data_begin = global i64 0
+    @camlIf_then_else_basic__data_end = global i64 0
+    @camlIf_then_else_basic__code_begin = global i64 0
+    @camlIf_then_else_basic__code_end = global i64 0
+    @camlIf_then_else_basic__frametable = global i64 0
+
+    define i64 @camlIf_then_else_basic__entry() {
+      br i1 true, label %1, label %2
+
+    1:                                                ; preds = %0
+      br label %3
+
+    2:                                                ; preds = %0
+      br label %3
+
+    3:                                                ; preds = %1, %2
+      %4 = phi i64 [ 41, %2 ], [ 21, %1 ]
+      ret i64 1
+    }
+
+    !llvm.module.flags = !{!0}
+
+    !0 = !{i32 2, !"Debug Info Version", i32 3}
     |}]
+
+let%expect_test "if-then-else nested complex" =
+  let t =
+    test_compile ~name:"if_then_else_complex"
+      ~code:
+        "\n\
+        \    external ( < ) : int -> int -> bool = \"%lessthan\"\n\
+        \    let x = \n\
+        \      if 1 < 2 then\n\
+        \        if 3 < 4 then\n\
+        \          if 5 < 6 then 10 else 20\n\
+        \        else if 7 < 8 then\n\
+        \          30\n\
+        \        else\n\
+        \          40\n\
+        \      else\n\
+        \        if 9 < 10 then 50 else 60\n\
+        \  "
+  in
+  verify_mlir t;
+  [%expect
+    {|
+    |}];
+  verify_std_mlir t;
+  [%expect
+    {|
+    |}];
+  verify_llvm t;
+  [%expect
+    {|
+    |}]
+
+

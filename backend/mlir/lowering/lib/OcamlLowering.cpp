@@ -58,7 +58,7 @@ struct ConvertOCamlToBuiltin
       target.addLegalOp<ocaml::ModuleOp, ocaml::ExternOp, ocaml::EntryOp>();
       target.addIllegalOp<ocaml::ConstantOp, ocaml::ExternCallOp, ocaml::BinOp,
                           ocaml::CmpOp, ocaml::AndOp, ocaml::OrOp,
-                          ocaml::NotOp>();
+                          ocaml::NotOp, ocaml::IfThenElseOp, ocaml::YieldOp>();
 
       RewritePatternSet patterns(context);
       ocaml::populateOcamlOpsPatterns(patterns, typeConverter, context,
