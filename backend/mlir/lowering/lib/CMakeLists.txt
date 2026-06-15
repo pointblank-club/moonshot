@@ -1,7 +1,8 @@
 add_mlir_dialect_library(MLIROCaml
   OCamlDialect.cpp
   OcamlLowering.cpp
-  OcamlLoweringTypes.cpp
+  OcamlOps.cpp
+  OcamlTypes.cpp
   OcamlInit.cpp
 
   DEPENDS
@@ -27,7 +28,8 @@ add_mlir_dialect_library(MLIROCaml
 add_library(dllMLIROCaml SHARED
   OCamlDialect.cpp
   OcamlLowering.cpp
-  OcamlLoweringTypes.cpp
+  OcamlOps.cpp
+  OcamlTypes.cpp
   OcamlInit.cpp
 )
 

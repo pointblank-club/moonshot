@@ -94,7 +94,7 @@ let create_binop builder loc block op_name lhs rhs =
 
 let create_float_binop builder loc block op_name lhs rhs =
   let ctx = builder.Builders.OpBuilder.ctx in
-  let state = Operation.State.get "ocaml.float_binop" loc in
+  let state = Operation.State.get "ocaml.binop" loc in
   Operation.State.add_attributes state [named_string_attr ctx "op_name" op_name];
   Operation.State.add_operands state [lhs; rhs];
   Operation.State.add_results state [ocaml_float_type ctx];
@@ -159,7 +159,7 @@ let create_cmp builder loc block predicate lhs rhs =
 (* Compare two boxed floats, yielding an OCaml bool. *)
 let create_float_cmp builder loc block predicate lhs rhs =
   let ctx = builder.Builders.OpBuilder.ctx in
-  let state = Operation.State.get "ocaml.float_cmp" loc in
+  let state = Operation.State.get "ocaml.cmp" loc in
   Operation.State.add_attributes state
     [named_string_attr ctx "predicate" predicate];
   Operation.State.add_operands state [lhs; rhs];
