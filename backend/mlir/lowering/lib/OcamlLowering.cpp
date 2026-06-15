@@ -252,7 +252,7 @@ struct ConvertOCamlToBuiltin
           if (opaque.getTypeData() == "int") {
             return i64Type;
           }
-          if (opaque.getTypeData() == "value") {
+          if (opaque.getTypeData() == "unit") {
             return i64Type;
           }
         }

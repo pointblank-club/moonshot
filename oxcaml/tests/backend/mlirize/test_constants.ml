@@ -57,3 +57,53 @@ let%expect_test "constants" =
 
     !0 = !{i32 2, !"Debug Info Version", i32 3}
     |}]
+
+let%expect_test "unit_constant" =
+  let t = test_compile ~name:"unit_constant" ~code:"\n    let u = ()\n  " in
+  verify_mlir t;
+  [%expect
+    {|
+    ocaml.module @Unit_constant {
+      ocaml.entry {
+        %0 = ocaml.constant unit : !ocaml.unit
+      }
+    }
+    |}];
+  verify_std_mlir t;
+  [%expect
+    {|
+    module {
+      llvm.func @camlUnit_constant__entry() -> i64 {
+        %0 = llvm.mlir.constant(1 : i64) : i64
+        %1 = llvm.mlir.constant(1 : i64) : i64
+        llvm.return %1 : i64
+      }
+      llvm.mlir.global external @camlUnit_constant__gc_roots(0 : i64) {addr_space = 0 : i32} : i64
+      llvm.mlir.global external @camlUnit_constant__data_begin(0 : i64) {addr_space = 0 : i32} : i64
+      llvm.mlir.global external @camlUnit_constant__data_end(0 : i64) {addr_space = 0 : i32} : i64
+      llvm.mlir.global external @camlUnit_constant__code_begin(0 : i64) {addr_space = 0 : i32} : i64
+      llvm.mlir.global external @camlUnit_constant__code_end(0 : i64) {addr_space = 0 : i32} : i64
+      llvm.mlir.global external @camlUnit_constant__frametable(0 : i64) {addr_space = 0 : i32} : i64
+    }
+    |}];
+  verify_llvm t;
+  [%expect
+    {|
+    ; ModuleID = 'LLVMDialectModule'
+    source_filename = "LLVMDialectModule"
+
+    @camlUnit_constant__gc_roots = global i64 0
+    @camlUnit_constant__data_begin = global i64 0
+    @camlUnit_constant__data_end = global i64 0
+    @camlUnit_constant__code_begin = global i64 0
+    @camlUnit_constant__code_end = global i64 0
+    @camlUnit_constant__frametable = global i64 0
+
+    define i64 @camlUnit_constant__entry() {
+      ret i64 1
+    }
+
+    !llvm.module.flags = !{!0}
+
+    !0 = !{i32 2, !"Debug Info Version", i32 3}
+    |}]
