@@ -78,8 +78,8 @@ let%expect_test "float_arith" =
         %0 = ocaml.constant 1.500000e+00 : f64 : !ocaml.float
         %1 = ocaml.constant 2.000000e+00 : f64 : !ocaml.float
         %2 = ocaml.constant 3.000000e+00 : f64 : !ocaml.float
-        %3 = ocaml.float_binop "*" %1, %2 : !ocaml.float, !ocaml.float -> !ocaml.float
-        %4 = ocaml.float_binop "+" %0, %3 : !ocaml.float, !ocaml.float -> !ocaml.float
+        %3 = ocaml.binop "*" %1, %2 : !ocaml.float, !ocaml.float -> !ocaml.float
+        %4 = ocaml.binop "+" %0, %3 : !ocaml.float, !ocaml.float -> !ocaml.float
       }
     }
     |}];
@@ -188,10 +188,10 @@ let%expect_test "float_cmp" =
       ocaml.entry {
         %0 = ocaml.constant 1.500000e+00 : f64 : !ocaml.float
         %1 = ocaml.constant 2.000000e+00 : f64 : !ocaml.float
-        %2 = ocaml.float_cmp "lt" %0, %1 : !ocaml.float -> !ocaml.bool
+        %2 = ocaml.cmp "lt" %0, %1 : !ocaml.float -> !ocaml.bool
         %3 = ocaml.constant 1.500000e+00 : f64 : !ocaml.float
         %4 = ocaml.constant 2.000000e+00 : f64 : !ocaml.float
-        %5 = ocaml.float_cmp "eq" %3, %4 : !ocaml.float -> !ocaml.bool
+        %5 = ocaml.cmp "eq" %3, %4 : !ocaml.float -> !ocaml.bool
       }
     }
     |}];
@@ -211,23 +211,21 @@ let%expect_test "float_cmp" =
         %4 = llvm.load %1 : !llvm.ptr -> f64
         %5 = llvm.load %3 : !llvm.ptr -> f64
         %6 = llvm.fcmp "olt" %4, %5 : f64
-        %7 = llvm.zext %6 : i1 to i64
+        %7 = llvm.mlir.constant(3 : i64) : i64
         %8 = llvm.mlir.constant(1 : i64) : i64
-        %9 = llvm.shl %7, %8 : i64
-        %10 = llvm.or %9, %8 : i64
-        %11 = llvm.mlir.addressof @camlFloat_cmp.3 : !llvm.ptr
-        %12 = llvm.getelementptr %11[8] : (!llvm.ptr) -> !llvm.ptr, i8
-        %13 = llvm.mlir.addressof @camlFloat_cmp.4 : !llvm.ptr
-        %14 = llvm.getelementptr %13[8] : (!llvm.ptr) -> !llvm.ptr, i8
-        %15 = llvm.load %12 : !llvm.ptr -> f64
-        %16 = llvm.load %14 : !llvm.ptr -> f64
-        %17 = llvm.fcmp "oeq" %15, %16 : f64
-        %18 = llvm.zext %17 : i1 to i64
-        %19 = llvm.mlir.constant(1 : i64) : i64
-        %20 = llvm.shl %18, %19 : i64
-        %21 = llvm.or %20, %19 : i64
-        %22 = llvm.mlir.constant(1 : i64) : i64
-        llvm.return %22 : i64
+        %9 = llvm.select %6, %7, %8 : i1, i64
+        %10 = llvm.mlir.addressof @camlFloat_cmp.3 : !llvm.ptr
+        %11 = llvm.getelementptr %10[8] : (!llvm.ptr) -> !llvm.ptr, i8
+        %12 = llvm.mlir.addressof @camlFloat_cmp.4 : !llvm.ptr
+        %13 = llvm.getelementptr %12[8] : (!llvm.ptr) -> !llvm.ptr, i8
+        %14 = llvm.load %11 : !llvm.ptr -> f64
+        %15 = llvm.load %13 : !llvm.ptr -> f64
+        %16 = llvm.fcmp "oeq" %14, %15 : f64
+        %17 = llvm.mlir.constant(3 : i64) : i64
+        %18 = llvm.mlir.constant(1 : i64) : i64
+        %19 = llvm.select %16, %17, %18 : i1, i64
+        %20 = llvm.mlir.constant(1 : i64) : i64
+        llvm.return %20 : i64
       }
       llvm.mlir.global external @camlFloat_cmp__gc_roots(0 : i64) {addr_space = 0 : i32} : i64
       llvm.mlir.global external @camlFloat_cmp__data_begin(0 : i64) {addr_space = 0 : i32} : i64
@@ -258,15 +256,11 @@ let%expect_test "float_cmp" =
       %1 = load double, ptr getelementptr inbounds nuw (i8, ptr @camlFloat_cmp.1, i64 8), align 8
       %2 = load double, ptr getelementptr inbounds nuw (i8, ptr @camlFloat_cmp.2, i64 8), align 8
       %3 = fcmp olt double %1, %2
-      %4 = zext i1 %3 to i64
-      %5 = shl i64 %4, 1
-      %6 = or i64 %5, 1
-      %7 = load double, ptr getelementptr inbounds nuw (i8, ptr @camlFloat_cmp.3, i64 8), align 8
-      %8 = load double, ptr getelementptr inbounds nuw (i8, ptr @camlFloat_cmp.4, i64 8), align 8
-      %9 = fcmp oeq double %7, %8
-      %10 = zext i1 %9 to i64
-      %11 = shl i64 %10, 1
-      %12 = or i64 %11, 1
+      %4 = select i1 %3, i64 3, i64 1
+      %5 = load double, ptr getelementptr inbounds nuw (i8, ptr @camlFloat_cmp.3, i64 8), align 8
+      %6 = load double, ptr getelementptr inbounds nuw (i8, ptr @camlFloat_cmp.4, i64 8), align 8
+      %7 = fcmp oeq double %5, %6
+      %8 = select i1 %7, i64 3, i64 1
       ret i64 1
     }
 

@@ -4,18 +4,7 @@
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/OpBase.td"
 
-def OCaml_Dialect : Dialect {
-  let name = "ocaml";
-  let summary = "The OCaml Dialect";
-  let description = [{
-    The OCaml dialect represents OCaml-specific constructs during compilation.
-  }];
-  let cppNamespace = "::ocaml";
-  let useDefaultTypePrinterParser = 1;
-}
-
-class OCaml_Op<string mnemonic, list<Trait> traits = []>
-    : Op<OCaml_Dialect, mnemonic, traits>;
+include "OCamlDialect.td"
 
 def BoxedTypeInterface : TypeInterface<"BoxedTypeInterface"> {
   let cppNamespace = "::ocaml";

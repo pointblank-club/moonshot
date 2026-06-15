@@ -8,7 +8,7 @@ mlir_tablegen(OCamlTypes.cpp.inc -gen-typedef-defs)
 mlir_tablegen(OCamlTypeInterfaces.h.inc -gen-type-interface-decls)
 mlir_tablegen(OCamlTypeInterfaces.cpp.inc -gen-type-interface-defs)
 
-set(LLVM_TARGET_DEFINITIONS OCamlDialect.td)
+set(LLVM_TARGET_DEFINITIONS OCamlOps.td)
 mlir_tablegen(OCamlOps.h.inc -gen-op-decls)
 mlir_tablegen(OCamlOps.cpp.inc -gen-op-defs)
 
