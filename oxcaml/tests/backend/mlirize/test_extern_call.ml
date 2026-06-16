@@ -54,8 +54,8 @@ let%expect_test "extern call assignment" =
   verify_llvm t;
   [%expect
     {|
-    ; ModuleID = 'LLVMDialectModule'
-    source_filename = "LLVMDialectModule"
+    ; ModuleID = 'extern_call_assign.ml'
+    source_filename = "extern_call_assign.ml"
 
     @camlExtern_call_assign.1 = constant [32 x i8] c"\FC\0F\00\00\00\00\00\00Hello from C puts!\00\00\00\00\00\05"
     @camlExtern_call_assign__gc_roots = global i64 0
@@ -146,8 +146,8 @@ let%expect_test "extern call helpers" =
   verify_llvm t;
   [%expect
     {|
-    ; ModuleID = 'LLVMDialectModule'
-    source_filename = "LLVMDialectModule"
+    ; ModuleID = 'extern_call_helpers.ml'
+    source_filename = "extern_call_helpers.ml"
 
     @camlExtern_call_helpers.1 = constant [24 x i8] c"\FC\0B\00\00\00\00\00\00Hello, MLIR!\00\00\00\03"
     @camlExtern_call_helpers__gc_roots = global i64 0

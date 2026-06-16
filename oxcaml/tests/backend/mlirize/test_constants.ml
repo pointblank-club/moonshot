@@ -41,8 +41,8 @@ let%expect_test "constants" =
   verify_llvm t;
   [%expect
     {|
-    ; ModuleID = 'LLVMDialectModule'
-    source_filename = "LLVMDialectModule"
+    ; ModuleID = 'constants.ml'
+    source_filename = "constants.ml"
 
     @camlConstants.1 = constant [16 x i8] c"\FC\07\00\00\00\00\00\00hello\00\00\02"
     @camlConstants__gc_roots = global i64 0
@@ -94,8 +94,8 @@ let%expect_test "unit_constant" =
   verify_llvm t;
   [%expect
     {|
-    ; ModuleID = 'LLVMDialectModule'
-    source_filename = "LLVMDialectModule"
+    ; ModuleID = 'unit_constant.ml'
+    source_filename = "unit_constant.ml"
 
     @camlUnit_constant__gc_roots = global i64 0
     @camlUnit_constant__data_begin = global i64 0

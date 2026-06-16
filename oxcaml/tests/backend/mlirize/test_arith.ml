@@ -58,8 +58,8 @@ let%expect_test "arithmetic" =
   verify_llvm t;
   [%expect
     {|
-    ; ModuleID = 'LLVMDialectModule'
-    source_filename = "LLVMDialectModule"
+    ; ModuleID = 'arith.ml'
+    source_filename = "arith.ml"
 
     @camlArith__gc_roots = global i64 0
     @camlArith__data_begin = global i64 0

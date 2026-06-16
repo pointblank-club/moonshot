@@ -106,8 +106,8 @@ let%expect_test "logical operators" =
   verify_llvm t;
   [%expect
     {|
-    ; ModuleID = 'LLVMDialectModule'
-    source_filename = "LLVMDialectModule"
+    ; ModuleID = 'logical.ml'
+    source_filename = "logical.ml"
 
     @camlLogical__gc_roots = global i64 0
     @camlLogical__data_begin = global i64 0

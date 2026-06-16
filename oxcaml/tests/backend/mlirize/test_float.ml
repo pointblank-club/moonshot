@@ -42,8 +42,8 @@ let%expect_test "float" =
   verify_llvm t;
   [%expect
     {|
-    ; ModuleID = 'LLVMDialectModule'
-    source_filename = "LLVMDialectModule"
+    ; ModuleID = 'float.ml'
+    source_filename = "float.ml"
 
     @camlFloat.1 = constant [16 x i8] c"\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\F8?"
     @camlFloat.2 = constant [16 x i8] c"\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\00@"
@@ -129,8 +129,8 @@ let%expect_test "float_arith" =
   verify_llvm t;
   [%expect
     {|
-    ; ModuleID = 'LLVMDialectModule'
-    source_filename = "LLVMDialectModule"
+    ; ModuleID = 'float_arith.ml'
+    source_filename = "float_arith.ml"
 
     @camlFloat_arith.1 = constant [16 x i8] c"\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\F8?"
     @camlFloat_arith.2 = constant [16 x i8] c"\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\00@"
@@ -288,8 +288,8 @@ let%expect_test "float_cmp" =
   verify_llvm t;
   [%expect
     {|
-    ; ModuleID = 'LLVMDialectModule'
-    source_filename = "LLVMDialectModule"
+    ; ModuleID = 'float_cmp.ml'
+    source_filename = "float_cmp.ml"
 
     @camlFloat_cmp.1 = constant [16 x i8] c"\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\F8?"
     @camlFloat_cmp.2 = constant [16 x i8] c"\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\00@"

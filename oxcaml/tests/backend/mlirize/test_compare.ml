@@ -113,8 +113,8 @@ let%expect_test "int comparison" =
   verify_llvm t;
   [%expect
     {|
-    ; ModuleID = 'LLVMDialectModule'
-    source_filename = "LLVMDialectModule"
+    ; ModuleID = 'compare.ml'
+    source_filename = "compare.ml"
 
     @camlCompare__gc_roots = global i64 0
     @camlCompare__data_begin = global i64 0
