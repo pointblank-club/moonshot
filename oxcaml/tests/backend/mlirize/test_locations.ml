@@ -1,0 +1,51 @@
+open Helpers
+
+(* Each emitted op should carry the source file:line:col of the expression it
+   came from, rather than loc(unknown). *)
+let%expect_test "source locations" =
+  let t =
+    test_compile ~name:"locations"
+      ~code:
+        "\n\
+        \    external ( + ) : int -> int -> int = \"%addint\"\n\
+        \    let a = 10\n\
+        \    let b = a + 20\n\
+        \  "
+  in
+  verify_mlir t;
+  [%expect
+    {|
+    ocaml.module @Locations {
+      ocaml.entry {
+        %0 = ocaml.constant 10 : !ocaml.int loc(#loc1)
+        %1 = ocaml.constant 20 : !ocaml.int loc(#loc2)
+        %2 = ocaml.binop "+" %0, %1 : !ocaml.int, !ocaml.int -> !ocaml.int loc(#loc3)
+      } loc(#loc)
+    } loc(#loc)
+    #loc = loc(unknown)
+    #loc1 = loc("locations.ml":3:13)
+    #loc2 = loc("locations.ml":4:17)
+    #loc3 = loc("locations.ml":4:13)
+    |}]
+
+(* Constants on different lines/columns get distinct locations. *)
+let%expect_test "distinct locations" =
+  let t =
+    test_compile ~name:"multiloc"
+      ~code:"\n    let x = 1\n    let y = 22\n    let z = \"s\"\n  "
+  in
+  verify_mlir t;
+  [%expect
+    {|
+    ocaml.module @Multiloc {
+      ocaml.entry {
+        %0 = ocaml.constant 1 : !ocaml.int loc(#loc1)
+        %1 = ocaml.constant 22 : !ocaml.int loc(#loc2)
+        %2 = ocaml.constant "s" : !ocaml.string loc(#loc3)
+      } loc(#loc)
+    } loc(#loc)
+    #loc = loc(unknown)
+    #loc1 = loc("multiloc.ml":2:13)
+    #loc2 = loc("multiloc.ml":3:13)
+    #loc3 = loc("multiloc.ml":4:13)
+    |}]

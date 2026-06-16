@@ -68,7 +68,10 @@ CAMLprim value OcamlLoweringInit(value v_ctx_ptr, value v_op_ptr,
   std::error_code ec_mlir;
   llvm::raw_fd_ostream mlir_dest(mlir_file, ec_mlir, llvm::sys::fs::OF_None);
   if (!ec_mlir) {
-    top->print(mlir_dest);
+    // Print with debug info so source locations attached during MLIR
+    mlir::OpPrintingFlags flags;
+    flags.enableDebugInfo(/*enable=*/true, /*prettyForm=*/false);
+    top->print(mlir_dest, flags);
     mlir_dest.flush();
   }
 

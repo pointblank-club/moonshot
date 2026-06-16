@@ -34,6 +34,20 @@ let ocaml_i64_type ctx =
       Omlir_bindings.BuiltinTypes.mlirIntegerTypeGet ctx.MlirContext.raw 64
   }
 
+let file_line_col_loc builder (pos : Lexing.position) =
+  let ctx = builder.Builders.OpBuilder.ctx in
+  if pos.Lexing.pos_fname = ""
+  then Builders.OpBuilder.get_unknown_loc builder
+  else
+    let filename = StringRef.of_string pos.Lexing.pos_fname in
+    let line = pos.Lexing.pos_lnum in
+    let col = pos.Lexing.pos_cnum - pos.Lexing.pos_bol + 1 in
+    { Location.raw =
+        Omlir_bindings.Ir.mlirLocationFileLineColGet ctx.MlirContext.raw
+          filename.raw line col;
+      Location.ctx
+    }
+
 let create_string builder loc block value =
   let ctx = builder.Builders.OpBuilder.ctx in
   let state = Operation.State.get "ocaml.constant" loc in
@@ -254,8 +268,9 @@ let is_int_type = is_constr_type Predef.path_int
 
 let is_float_type = is_constr_type Predef.path_float
 
-let rec compile_expr env builder loc module_block block created_externs
+let rec compile_expr env builder module_block block created_externs
     (expr : Typedtree.expression) =
+  let loc = file_line_col_loc builder expr.exp_loc.loc_start in
   match expr.exp_desc with
   | Texp_ident { path; _ } -> (
     let name = Path.name path in
@@ -290,7 +305,7 @@ let rec compile_expr env builder loc module_block block created_externs
     in
     let args =
       List.map
-        (compile_expr env builder loc module_block block created_externs)
+        (compile_expr env builder module_block block created_externs)
         arg_exprs
       |> List.filter_map Fun.id
     in
@@ -365,7 +380,7 @@ let rec compile_expr env builder loc module_block block created_externs
       List.fold_left
         (fun acc (binding : Typedtree.value_binding) ->
           let res =
-            compile_expr env builder loc module_block block created_externs
+            compile_expr env builder module_block block created_externs
               binding.vb_expr
           in
           match res, binding.vb_pat.pat_desc with
@@ -373,15 +388,15 @@ let rec compile_expr env builder loc module_block block created_externs
           | _ -> acc)
         env bindings
     in
-    compile_expr new_env builder loc module_block block created_externs body
+    compile_expr new_env builder module_block block created_externs body
   | Texp_sequence (first, _, second) ->
     ignore
-      (compile_expr env builder loc module_block block created_externs first
+      (compile_expr env builder module_block block created_externs first
         : Value.t option);
-    compile_expr env builder loc module_block block created_externs second
+    compile_expr env builder module_block block created_externs second
   | _ -> None
 
-let compile_structure builder loc module_block entry_block created_externs
+let compile_structure builder module_block entry_block created_externs
     (impl : Typedtree.implementation) =
   let global_env = ref [] in
   List.iter
@@ -389,7 +404,7 @@ let compile_structure builder loc module_block entry_block created_externs
       match item.str_desc with
       | Tstr_eval (expr, _, _) ->
         ignore
-          (compile_expr !global_env builder loc module_block entry_block
+          (compile_expr !global_env builder module_block entry_block
              created_externs expr
             : Value.t option)
       | Tstr_value (_, bindings) ->
@@ -397,7 +412,7 @@ let compile_structure builder loc module_block entry_block created_externs
           List.filter_map
             (fun (binding : Typedtree.value_binding) ->
               match
-                compile_expr !global_env builder loc module_block entry_block
+                compile_expr !global_env builder module_block entry_block
                   created_externs binding.vb_expr
               with
               | Some val_obj -> (
@@ -448,7 +463,7 @@ let compile_from_typed ~module_name ~output_prefix ~ppf_dump _impl =
   Operation.State.add_owned_regions entry_state [entry_region];
   let ocaml_entry = Operation.create entry_state in
   Operation.append_owned_operation block ocaml_entry;
-  compile_structure builder loc block entry_block created_externs _impl;
+  compile_structure builder block entry_block created_externs _impl;
   (* Pass the raw pointers to the C++ FFI *)
   let raw_op = Bindings.Ir.mlir_operation_ptr ocaml_mod.raw in
   Caml_bindings.lowering_init ~ctx_ptr:raw_ctx ~op_ptr:raw_op

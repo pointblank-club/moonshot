@@ -24,26 +24,39 @@ let%expect_test "int comparison" =
     {|
     ocaml.module @Compare {
       ocaml.entry {
-        %0 = ocaml.constant 2 : !ocaml.int
-        %1 = ocaml.constant 9 : !ocaml.int
-        %2 = ocaml.cmp "lt" %0, %1 : !ocaml.int -> !ocaml.bool
-        %3 = ocaml.constant 7 : !ocaml.int
-        %4 = ocaml.constant 3 : !ocaml.int
-        %5 = ocaml.cmp "gt" %3, %4 : !ocaml.int -> !ocaml.bool
-        %6 = ocaml.constant 2 : !ocaml.int
-        %7 = ocaml.constant 9 : !ocaml.int
-        %8 = ocaml.cmp "le" %6, %7 : !ocaml.int -> !ocaml.bool
-        %9 = ocaml.constant 7 : !ocaml.int
-        %10 = ocaml.constant 3 : !ocaml.int
-        %11 = ocaml.cmp "ge" %9, %10 : !ocaml.int -> !ocaml.bool
-        %12 = ocaml.constant 4 : !ocaml.int
-        %13 = ocaml.constant 4 : !ocaml.int
-        %14 = ocaml.cmp "eq" %12, %13 : !ocaml.int -> !ocaml.bool
-        %15 = ocaml.constant 4 : !ocaml.int
-        %16 = ocaml.constant 9 : !ocaml.int
-        %17 = ocaml.cmp "ne" %15, %16 : !ocaml.int -> !ocaml.bool
-      }
-    }
+        %0 = ocaml.constant 2 : !ocaml.int loc(#loc1)
+        %1 = ocaml.constant 9 : !ocaml.int loc(#loc2)
+        %2 = ocaml.cmp "lt" %0, %1 : !ocaml.int -> !ocaml.bool loc(#loc1)
+        %3 = ocaml.constant 7 : !ocaml.int loc(#loc3)
+        %4 = ocaml.constant 3 : !ocaml.int loc(#loc4)
+        %5 = ocaml.cmp "gt" %3, %4 : !ocaml.int -> !ocaml.bool loc(#loc3)
+        %6 = ocaml.constant 2 : !ocaml.int loc(#loc5)
+        %7 = ocaml.constant 9 : !ocaml.int loc(#loc6)
+        %8 = ocaml.cmp "le" %6, %7 : !ocaml.int -> !ocaml.bool loc(#loc5)
+        %9 = ocaml.constant 7 : !ocaml.int loc(#loc7)
+        %10 = ocaml.constant 3 : !ocaml.int loc(#loc8)
+        %11 = ocaml.cmp "ge" %9, %10 : !ocaml.int -> !ocaml.bool loc(#loc7)
+        %12 = ocaml.constant 4 : !ocaml.int loc(#loc9)
+        %13 = ocaml.constant 4 : !ocaml.int loc(#loc10)
+        %14 = ocaml.cmp "eq" %12, %13 : !ocaml.int -> !ocaml.bool loc(#loc9)
+        %15 = ocaml.constant 4 : !ocaml.int loc(#loc11)
+        %16 = ocaml.constant 9 : !ocaml.int loc(#loc12)
+        %17 = ocaml.cmp "ne" %15, %16 : !ocaml.int -> !ocaml.bool loc(#loc11)
+      } loc(#loc)
+    } loc(#loc)
+    #loc = loc(unknown)
+    #loc1 = loc("compare.ml":8:14)
+    #loc2 = loc("compare.ml":8:18)
+    #loc3 = loc("compare.ml":9:14)
+    #loc4 = loc("compare.ml":9:18)
+    #loc5 = loc("compare.ml":10:14)
+    #loc6 = loc("compare.ml":10:19)
+    #loc7 = loc("compare.ml":11:14)
+    #loc8 = loc("compare.ml":11:19)
+    #loc9 = loc("compare.ml":12:14)
+    #loc10 = loc("compare.ml":12:18)
+    #loc11 = loc("compare.ml":13:14)
+    #loc12 = loc("compare.ml":13:19)
     |}];
   verify_std_mlir t;
   [%expect
