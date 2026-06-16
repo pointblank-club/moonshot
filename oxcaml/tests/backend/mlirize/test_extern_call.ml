@@ -16,13 +16,17 @@ let%expect_test "extern call assignment" =
     {|
     ocaml.module @Extern_call_assign {
       ocaml.entry {
-        %0 = ocaml.constant "Hello from C puts!" : !ocaml.string
-        %1 = ocaml.extern_call @puts(%0) : (!ocaml.string) -> !ocaml.int
-        %2 = ocaml.extern_call @puts_int(%1) : (!ocaml.int) -> !ocaml.unit
-      }
-      ocaml.extern @puts {target = "caml_puts"} : (!ocaml.string) -> !ocaml.int
-      ocaml.extern @puts_int {target = "caml_puts_int"} : (!ocaml.int) -> !ocaml.unit
-    }
+        %0 = ocaml.constant "Hello from C puts!" : !ocaml.string loc(#loc1)
+        %1 = ocaml.extern_call @puts(%0) : (!ocaml.string) -> !ocaml.int loc(#loc2)
+        %2 = ocaml.extern_call @puts_int(%1) : (!ocaml.int) -> !ocaml.unit loc(#loc3)
+      } loc(#loc)
+      ocaml.extern @puts {target = "caml_puts"} : (!ocaml.string) -> !ocaml.int loc(#loc2)
+      ocaml.extern @puts_int {target = "caml_puts_int"} : (!ocaml.int) -> !ocaml.unit loc(#loc3)
+    } loc(#loc)
+    #loc = loc(unknown)
+    #loc1 = loc("extern_call_assign.ml":4:18)
+    #loc2 = loc("extern_call_assign.ml":4:13)
+    #loc3 = loc("extern_call_assign.ml":5:14)
     |}];
   verify_std_mlir t;
   [%expect
@@ -50,8 +54,8 @@ let%expect_test "extern call assignment" =
   verify_llvm t;
   [%expect
     {|
-    ; ModuleID = 'LLVMDialectModule'
-    source_filename = "LLVMDialectModule"
+    ; ModuleID = 'extern_call_assign.ml'
+    source_filename = "extern_call_assign.ml"
 
     @camlExtern_call_assign.1 = constant [32 x i8] c"\FC\0F\00\00\00\00\00\00Hello from C puts!\00\00\00\00\00\05"
     @camlExtern_call_assign__gc_roots = global i64 0
@@ -93,16 +97,23 @@ let%expect_test "extern call helpers" =
     {|
     ocaml.module @Extern_call_helpers {
       ocaml.entry {
-        %0 = ocaml.constant "Hello, MLIR!" : !ocaml.string
-        %1 = ocaml.extern_call @print_str(%0) : (!ocaml.string) -> !ocaml.unit
-        %2 = ocaml.constant 41 : !ocaml.int
-        %3 = ocaml.constant 1 : !ocaml.int
-        %4 = ocaml.binop "+" %2, %3 : !ocaml.int, !ocaml.int -> !ocaml.int
-        %5 = ocaml.extern_call @print_int(%4) : (!ocaml.int) -> !ocaml.unit
-      }
-      ocaml.extern @print_str {target = "print_str"} : (!ocaml.string) -> !ocaml.unit
-      ocaml.extern @print_int {target = "print_int"} : (!ocaml.int) -> !ocaml.unit
-    }
+        %0 = ocaml.constant "Hello, MLIR!" : !ocaml.string loc(#loc1)
+        %1 = ocaml.extern_call @print_str(%0) : (!ocaml.string) -> !ocaml.unit loc(#loc2)
+        %2 = ocaml.constant 41 : !ocaml.int loc(#loc3)
+        %3 = ocaml.constant 1 : !ocaml.int loc(#loc4)
+        %4 = ocaml.binop "+" %2, %3 : !ocaml.int, !ocaml.int -> !ocaml.int loc(#loc5)
+        %5 = ocaml.extern_call @print_int(%4) : (!ocaml.int) -> !ocaml.unit loc(#loc6)
+      } loc(#loc)
+      ocaml.extern @print_str {target = "print_str"} : (!ocaml.string) -> !ocaml.unit loc(#loc2)
+      ocaml.extern @print_int {target = "print_int"} : (!ocaml.int) -> !ocaml.unit loc(#loc6)
+    } loc(#loc)
+    #loc = loc(unknown)
+    #loc1 = loc("extern_call_helpers.ml":5:24)
+    #loc2 = loc("extern_call_helpers.ml":5:14)
+    #loc3 = loc("extern_call_helpers.ml":6:25)
+    #loc4 = loc("extern_call_helpers.ml":6:30)
+    #loc5 = loc("extern_call_helpers.ml":6:24)
+    #loc6 = loc("extern_call_helpers.ml":6:14)
     |}];
   verify_std_mlir t;
   [%expect
@@ -135,8 +146,8 @@ let%expect_test "extern call helpers" =
   verify_llvm t;
   [%expect
     {|
-    ; ModuleID = 'LLVMDialectModule'
-    source_filename = "LLVMDialectModule"
+    ; ModuleID = 'extern_call_helpers.ml'
+    source_filename = "extern_call_helpers.ml"
 
     @camlExtern_call_helpers.1 = constant [24 x i8] c"\FC\0B\00\00\00\00\00\00Hello, MLIR!\00\00\00\03"
     @camlExtern_call_helpers__gc_roots = global i64 0

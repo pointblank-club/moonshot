@@ -7,8 +7,9 @@ let%expect_test "empty module" =
     {|
     ocaml.module @Empty {
       ocaml.entry {
-      }
-    }
+      } loc(#loc)
+    } loc(#loc)
+    #loc = loc(unknown)
     |}];
   verify_std_mlir t;
   [%expect

@@ -10,10 +10,13 @@ let%expect_test "constants" =
     {|
     ocaml.module @Constants {
       ocaml.entry {
-        %0 = ocaml.constant 42 : !ocaml.int
-        %1 = ocaml.constant "hello" : !ocaml.string
-      }
-    }
+        %0 = ocaml.constant 42 : !ocaml.int loc(#loc1)
+        %1 = ocaml.constant "hello" : !ocaml.string loc(#loc2)
+      } loc(#loc)
+    } loc(#loc)
+    #loc = loc(unknown)
+    #loc1 = loc("constants.ml":2:13)
+    #loc2 = loc("constants.ml":3:13)
     |}];
   verify_std_mlir t;
   [%expect
@@ -38,8 +41,8 @@ let%expect_test "constants" =
   verify_llvm t;
   [%expect
     {|
-    ; ModuleID = 'LLVMDialectModule'
-    source_filename = "LLVMDialectModule"
+    ; ModuleID = 'constants.ml'
+    source_filename = "constants.ml"
 
     @camlConstants.1 = constant [16 x i8] c"\FC\07\00\00\00\00\00\00hello\00\00\02"
     @camlConstants__gc_roots = global i64 0
@@ -65,9 +68,11 @@ let%expect_test "unit_constant" =
     {|
     ocaml.module @Unit_constant {
       ocaml.entry {
-        %0 = ocaml.constant unit : !ocaml.unit
-      }
-    }
+        %0 = ocaml.constant unit : !ocaml.unit loc(#loc1)
+      } loc(#loc)
+    } loc(#loc)
+    #loc = loc(unknown)
+    #loc1 = loc("unit_constant.ml":2:13)
     |}];
   verify_std_mlir t;
   [%expect
@@ -89,8 +94,8 @@ let%expect_test "unit_constant" =
   verify_llvm t;
   [%expect
     {|
-    ; ModuleID = 'LLVMDialectModule'
-    source_filename = "LLVMDialectModule"
+    ; ModuleID = 'unit_constant.ml'
+    source_filename = "unit_constant.ml"
 
     @camlUnit_constant__gc_roots = global i64 0
     @camlUnit_constant__data_begin = global i64 0

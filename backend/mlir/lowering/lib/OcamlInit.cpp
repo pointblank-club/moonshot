@@ -4,6 +4,7 @@
 #include "mlir/CAPI/IR.h" // Needed for unwrap/wrap of MLIR C-API types
 #include "mlir/Conversion/Passes.h"
 #include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/Location.h"
 #include "mlir/InitAllDialects.h"
 #include "mlir/Parser/Parser.h"
 #include "mlir/Pass/PassManager.h"
@@ -68,9 +69,21 @@ CAMLprim value OcamlLoweringInit(value v_ctx_ptr, value v_op_ptr,
   std::error_code ec_mlir;
   llvm::raw_fd_ostream mlir_dest(mlir_file, ec_mlir, llvm::sys::fs::OF_None);
   if (!ec_mlir) {
-    top->print(mlir_dest);
+    // Print with debug info so source locations attached during MLIR
+    mlir::OpPrintingFlags flags;
+    flags.enableDebugInfo(/*enable=*/true, /*prettyForm=*/false);
+    top->print(mlir_dest, flags);
     mlir_dest.flush();
   }
+
+  std::string source_filename;
+  top->walk([&](mlir::Operation *op) {
+    if (auto floc = mlir::dyn_cast<mlir::FileLineColLoc>(op->getLoc())) {
+      source_filename = floc.getFilename().str();
+      return mlir::WalkResult::interrupt();
+    }
+    return mlir::WalkResult::advance();
+  });
 
   mlir::ModuleOp module = mlir::ModuleOp::create(ocaml_module.getLoc());
   module.getBody()->push_back(ocaml_module.getOperation());
@@ -90,6 +103,11 @@ CAMLprim value OcamlLoweringInit(value v_ctx_ptr, value v_op_ptr,
       mlir::translateModuleToLLVMIR(module, llvm_ctx);
   if (!llvm_mod) {
     caml_failwith("Failed to translate MLIR to LLVM IR");
+  }
+
+  if (!source_filename.empty()) {
+    llvm_mod->setModuleIdentifier(source_filename);
+    llvm_mod->setSourceFileName(source_filename);
   }
 
   std::string tripleStr = llvm::sys::getDefaultTargetTriple();

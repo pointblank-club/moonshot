@@ -16,13 +16,17 @@ let%expect_test "arithmetic" =
     {|
     ocaml.module @Arith {
       ocaml.entry {
-        %0 = ocaml.constant 1 : !ocaml.int
-        %1 = ocaml.constant 2 : !ocaml.int
-        %2 = ocaml.constant 3 : !ocaml.int
-        %3 = ocaml.binop "*" %1, %2 : !ocaml.int, !ocaml.int -> !ocaml.int
-        %4 = ocaml.binop "+" %0, %3 : !ocaml.int, !ocaml.int -> !ocaml.int
-      }
-    }
+        %0 = ocaml.constant 1 : !ocaml.int loc(#loc1)
+        %1 = ocaml.constant 2 : !ocaml.int loc(#loc2)
+        %2 = ocaml.constant 3 : !ocaml.int loc(#loc3)
+        %3 = ocaml.binop "*" %1, %2 : !ocaml.int, !ocaml.int -> !ocaml.int loc(#loc2)
+        %4 = ocaml.binop "+" %0, %3 : !ocaml.int, !ocaml.int -> !ocaml.int loc(#loc1)
+      } loc(#loc)
+    } loc(#loc)
+    #loc = loc(unknown)
+    #loc1 = loc("arith.ml":5:15)
+    #loc2 = loc("arith.ml":5:19)
+    #loc3 = loc("arith.ml":5:23)
     |}];
   verify_std_mlir t;
   [%expect
@@ -54,8 +58,8 @@ let%expect_test "arithmetic" =
   verify_llvm t;
   [%expect
     {|
-    ; ModuleID = 'LLVMDialectModule'
-    source_filename = "LLVMDialectModule"
+    ; ModuleID = 'arith.ml'
+    source_filename = "arith.ml"
 
     @camlArith__gc_roots = global i64 0
     @camlArith__data_begin = global i64 0

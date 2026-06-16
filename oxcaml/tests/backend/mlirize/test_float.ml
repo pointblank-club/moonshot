@@ -9,10 +9,13 @@ let%expect_test "float" =
     {|
     ocaml.module @Float {
       ocaml.entry {
-        %0 = ocaml.constant 1.500000e+00 : f64 : !ocaml.float
-        %1 = ocaml.constant 2.000000e+00 : f64 : !ocaml.float
-      }
-    }
+        %0 = ocaml.constant 1.500000e+00 : f64 : !ocaml.float loc(#loc1)
+        %1 = ocaml.constant 2.000000e+00 : f64 : !ocaml.float loc(#loc2)
+      } loc(#loc)
+    } loc(#loc)
+    #loc = loc(unknown)
+    #loc1 = loc("float.ml":2:13)
+    #loc2 = loc("float.ml":3:13)
     |}];
   verify_std_mlir t;
   [%expect
@@ -39,8 +42,8 @@ let%expect_test "float" =
   verify_llvm t;
   [%expect
     {|
-    ; ModuleID = 'LLVMDialectModule'
-    source_filename = "LLVMDialectModule"
+    ; ModuleID = 'float.ml'
+    source_filename = "float.ml"
 
     @camlFloat.1 = constant [16 x i8] c"\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\F8?"
     @camlFloat.2 = constant [16 x i8] c"\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\00@"
@@ -75,13 +78,17 @@ let%expect_test "float_arith" =
     {|
     ocaml.module @Float_arith {
       ocaml.entry {
-        %0 = ocaml.constant 1.500000e+00 : f64 : !ocaml.float
-        %1 = ocaml.constant 2.000000e+00 : f64 : !ocaml.float
-        %2 = ocaml.constant 3.000000e+00 : f64 : !ocaml.float
-        %3 = ocaml.binop "*" %1, %2 : !ocaml.float, !ocaml.float -> !ocaml.float
-        %4 = ocaml.binop "+" %0, %3 : !ocaml.float, !ocaml.float -> !ocaml.float
-      }
-    }
+        %0 = ocaml.constant 1.500000e+00 : f64 : !ocaml.float loc(#loc1)
+        %1 = ocaml.constant 2.000000e+00 : f64 : !ocaml.float loc(#loc2)
+        %2 = ocaml.constant 3.000000e+00 : f64 : !ocaml.float loc(#loc3)
+        %3 = ocaml.binop "*" %1, %2 : !ocaml.float, !ocaml.float -> !ocaml.float loc(#loc2)
+        %4 = ocaml.binop "+" %0, %3 : !ocaml.float, !ocaml.float -> !ocaml.float loc(#loc1)
+      } loc(#loc)
+    } loc(#loc)
+    #loc = loc(unknown)
+    #loc1 = loc("float_arith.ml":4:15)
+    #loc2 = loc("float_arith.ml":4:22)
+    #loc3 = loc("float_arith.ml":4:29)
     |}];
   verify_std_mlir t;
   [%expect
@@ -122,8 +129,8 @@ let%expect_test "float_arith" =
   verify_llvm t;
   [%expect
     {|
-    ; ModuleID = 'LLVMDialectModule'
-    source_filename = "LLVMDialectModule"
+    ; ModuleID = 'float_arith.ml'
+    source_filename = "float_arith.ml"
 
     @camlFloat_arith.1 = constant [16 x i8] c"\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\F8?"
     @camlFloat_arith.2 = constant [16 x i8] c"\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\00@"
@@ -190,20 +197,29 @@ let%expect_test "float_cmp" =
     {|
     ocaml.module @Float_cmp {
       ocaml.entry {
-        %0 = ocaml.constant 1.500000e+00 : f64 : !ocaml.float
-        %1 = ocaml.constant 2.000000e+00 : f64 : !ocaml.float
-        %2 = ocaml.cmp "lt" %0, %1 : !ocaml.float -> !ocaml.bool
-        %3 = ocaml.constant 1.500000e+00 : f64 : !ocaml.float
-        %4 = ocaml.constant 2.000000e+00 : f64 : !ocaml.float
-        %5 = ocaml.cmp "le" %3, %4 : !ocaml.float -> !ocaml.bool
-        %6 = ocaml.constant 2.000000e+00 : f64 : !ocaml.float
-        %7 = ocaml.constant 1.500000e+00 : f64 : !ocaml.float
-        %8 = ocaml.cmp "ge" %6, %7 : !ocaml.float -> !ocaml.bool
-        %9 = ocaml.constant 1.500000e+00 : f64 : !ocaml.float
-        %10 = ocaml.constant 2.000000e+00 : f64 : !ocaml.float
-        %11 = ocaml.cmp "eq" %9, %10 : !ocaml.float -> !ocaml.bool
-      }
-    }
+        %0 = ocaml.constant 1.500000e+00 : f64 : !ocaml.float loc(#loc1)
+        %1 = ocaml.constant 2.000000e+00 : f64 : !ocaml.float loc(#loc2)
+        %2 = ocaml.cmp "lt" %0, %1 : !ocaml.float -> !ocaml.bool loc(#loc1)
+        %3 = ocaml.constant 1.500000e+00 : f64 : !ocaml.float loc(#loc3)
+        %4 = ocaml.constant 2.000000e+00 : f64 : !ocaml.float loc(#loc4)
+        %5 = ocaml.cmp "le" %3, %4 : !ocaml.float -> !ocaml.bool loc(#loc3)
+        %6 = ocaml.constant 2.000000e+00 : f64 : !ocaml.float loc(#loc5)
+        %7 = ocaml.constant 1.500000e+00 : f64 : !ocaml.float loc(#loc6)
+        %8 = ocaml.cmp "ge" %6, %7 : !ocaml.float -> !ocaml.bool loc(#loc5)
+        %9 = ocaml.constant 1.500000e+00 : f64 : !ocaml.float loc(#loc7)
+        %10 = ocaml.constant 2.000000e+00 : f64 : !ocaml.float loc(#loc8)
+        %11 = ocaml.cmp "eq" %9, %10 : !ocaml.float -> !ocaml.bool loc(#loc7)
+      } loc(#loc)
+    } loc(#loc)
+    #loc = loc(unknown)
+    #loc1 = loc("float_cmp.ml":6:13)
+    #loc2 = loc("float_cmp.ml":6:19)
+    #loc3 = loc("float_cmp.ml":7:13)
+    #loc4 = loc("float_cmp.ml":7:20)
+    #loc5 = loc("float_cmp.ml":8:13)
+    #loc6 = loc("float_cmp.ml":8:20)
+    #loc7 = loc("float_cmp.ml":9:13)
+    #loc8 = loc("float_cmp.ml":9:19)
     |}];
   verify_std_mlir t;
   [%expect
@@ -272,8 +288,8 @@ let%expect_test "float_cmp" =
   verify_llvm t;
   [%expect
     {|
-    ; ModuleID = 'LLVMDialectModule'
-    source_filename = "LLVMDialectModule"
+    ; ModuleID = 'float_cmp.ml'
+    source_filename = "float_cmp.ml"
 
     @camlFloat_cmp.1 = constant [16 x i8] c"\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\F8?"
     @camlFloat_cmp.2 = constant [16 x i8] c"\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\00@"

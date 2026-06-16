@@ -19,26 +19,39 @@ let%expect_test "logical operators" =
     {|
     ocaml.module @Logical {
       ocaml.entry {
-        %0 = ocaml.constant 3 : !ocaml.int
-        %1 = ocaml.constant 5 : !ocaml.int
-        %2 = ocaml.cmp "lt" %0, %1 : !ocaml.int -> !ocaml.bool
-        %3 = ocaml.constant 2 : !ocaml.int
-        %4 = ocaml.constant 1 : !ocaml.int
-        %5 = ocaml.cmp "lt" %3, %4 : !ocaml.int -> !ocaml.bool
-        %6 = ocaml.and %2, %5 : !ocaml.bool
-        %7 = ocaml.constant 1 : !ocaml.int
-        %8 = ocaml.constant 2 : !ocaml.int
-        %9 = ocaml.cmp "lt" %7, %8 : !ocaml.int -> !ocaml.bool
-        %10 = ocaml.constant 5 : !ocaml.int
-        %11 = ocaml.constant 4 : !ocaml.int
-        %12 = ocaml.cmp "lt" %10, %11 : !ocaml.int -> !ocaml.bool
-        %13 = ocaml.or %9, %12 : !ocaml.bool
-        %14 = ocaml.constant 1 : !ocaml.int
-        %15 = ocaml.constant 2 : !ocaml.int
-        %16 = ocaml.cmp "lt" %14, %15 : !ocaml.int -> !ocaml.bool
-        %17 = ocaml.not %16 : !ocaml.bool
-      }
-    }
+        %0 = ocaml.constant 3 : !ocaml.int loc(#loc1)
+        %1 = ocaml.constant 5 : !ocaml.int loc(#loc2)
+        %2 = ocaml.cmp "lt" %0, %1 : !ocaml.int -> !ocaml.bool loc(#loc1)
+        %3 = ocaml.constant 2 : !ocaml.int loc(#loc3)
+        %4 = ocaml.constant 1 : !ocaml.int loc(#loc4)
+        %5 = ocaml.cmp "lt" %3, %4 : !ocaml.int -> !ocaml.bool loc(#loc3)
+        %6 = ocaml.and %2, %5 : !ocaml.bool loc(#loc1)
+        %7 = ocaml.constant 1 : !ocaml.int loc(#loc5)
+        %8 = ocaml.constant 2 : !ocaml.int loc(#loc6)
+        %9 = ocaml.cmp "lt" %7, %8 : !ocaml.int -> !ocaml.bool loc(#loc5)
+        %10 = ocaml.constant 5 : !ocaml.int loc(#loc7)
+        %11 = ocaml.constant 4 : !ocaml.int loc(#loc8)
+        %12 = ocaml.cmp "lt" %10, %11 : !ocaml.int -> !ocaml.bool loc(#loc7)
+        %13 = ocaml.or %9, %12 : !ocaml.bool loc(#loc5)
+        %14 = ocaml.constant 1 : !ocaml.int loc(#loc9)
+        %15 = ocaml.constant 2 : !ocaml.int loc(#loc10)
+        %16 = ocaml.cmp "lt" %14, %15 : !ocaml.int -> !ocaml.bool loc(#loc11)
+        %17 = ocaml.not %16 : !ocaml.bool loc(#loc12)
+      } loc(#loc)
+    } loc(#loc)
+    #loc = loc(unknown)
+    #loc1 = loc("logical.ml":6:16)
+    #loc2 = loc("logical.ml":6:20)
+    #loc3 = loc("logical.ml":6:25)
+    #loc4 = loc("logical.ml":6:29)
+    #loc5 = loc("logical.ml":7:16)
+    #loc6 = loc("logical.ml":7:20)
+    #loc7 = loc("logical.ml":7:25)
+    #loc8 = loc("logical.ml":7:29)
+    #loc9 = loc("logical.ml":8:20)
+    #loc10 = loc("logical.ml":8:24)
+    #loc11 = loc("logical.ml":8:19)
+    #loc12 = loc("logical.ml":8:15)
     |}];
   verify_std_mlir t;
   [%expect
@@ -93,8 +106,8 @@ let%expect_test "logical operators" =
   verify_llvm t;
   [%expect
     {|
-    ; ModuleID = 'LLVMDialectModule'
-    source_filename = "LLVMDialectModule"
+    ; ModuleID = 'logical.ml'
+    source_filename = "logical.ml"
 
     @camlLogical__gc_roots = global i64 0
     @camlLogical__data_begin = global i64 0
