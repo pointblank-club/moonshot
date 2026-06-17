@@ -4,6 +4,7 @@ add_mlir_dialect_library(MLIROCaml
   OcamlOps.cpp
   OcamlTypes.cpp
   OcamlInit.cpp
+  OcamlOpsVerify.cpp
 
   DEPENDS
   MLIROCamlIncGen
@@ -31,6 +32,7 @@ add_library(dllMLIROCaml SHARED
   OcamlOps.cpp
   OcamlTypes.cpp
   OcamlInit.cpp
+  OcamlOpsVerify.cpp
 )
 
 set_target_properties(dllMLIROCaml PROPERTIES PREFIX "")

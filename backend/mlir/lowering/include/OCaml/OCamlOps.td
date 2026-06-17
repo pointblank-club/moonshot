@@ -4,6 +4,7 @@
 include "mlir/IR/OpBase.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
+include "mlir/Interfaces/ControlFlowInterfaces.td"
 
 include "OCamlTypes.td"
 
@@ -96,6 +97,29 @@ def ConstantOp : OCaml_Op<"constant", [ConstantLike, Pure]> {
   let arguments = (ins AnyAttr:$value);
   let results = (outs AnyType:$result);
   let hasCustomAssemblyFormat = 1;
+}
+
+def YieldOp : OCaml_Op<"yield", [Terminator, ReturnLike]> {
+  let summary = "Yield a value from an if-then-else branch region";
+  let arguments = (ins AnyType:$value);
+  let assemblyFormat = "$value attr-dict `:` type($value)";
+}
+
+def IfThenElseOp : OCaml_Op<"if_then_else"> {
+  let summary = "An OCaml if-then-else expression";
+  let description = [{
+    Evaluates `cond` (a tagged OCaml bool: false=1, true=3).
+    Executes the then-region if true, else-region otherwise.
+    Both regions must be single-block and end with ocaml.yield.
+    Yields the result of whichever region ran.
+  }];
+  let arguments = (ins BoolType:$cond);
+  let results = (outs AnyType:$result);
+  let regions = (region AnyRegion:$then_region,
+                        AnyRegion:$else_region);
+  let assemblyFormat =
+      "$cond attr-dict `:` type($cond) `->` type($result) `then` $then_region `else` $else_region";
+  let hasVerifier = 1;
 }
 
 #endif // OCAML_OPS
