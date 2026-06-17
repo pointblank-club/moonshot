@@ -417,7 +417,8 @@ let rec compile_expr env builder module_block block created_externs
       let then_block = Operation.Block.create () in
       Operation.Region.append_owned_block then_region then_block;
       match
-        compile_expr env builder module_block then_block created_externs then_expr
+        compile_expr env builder module_block then_block created_externs
+          then_expr
       with
       | None -> None
       | Some then_val ->
@@ -430,7 +431,8 @@ let rec compile_expr env builder module_block block created_externs
           match else_expr_opt with
           | Some else_expr -> (
             match
-              compile_expr env builder module_block else_block created_externs else_expr
+              compile_expr env builder module_block else_block created_externs
+                else_expr
             with
             | None -> false
             | Some else_val ->
