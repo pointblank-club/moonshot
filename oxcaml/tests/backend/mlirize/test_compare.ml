@@ -152,7 +152,7 @@ let%expect_test "if-then-else basic" =
         %0 = ocaml.constant 3 : !ocaml.int
         %1 = ocaml.constant 5 : !ocaml.int
         %2 = ocaml.cmp "lt" %0, %1 : !ocaml.int -> !ocaml.bool
-        %3 = ocaml.if_then_else %2 : !ocaml.bool -> !ocaml.int {
+        %3 = ocaml.if_then_else %2 : !ocaml.bool -> !ocaml.int then {
           %4 = ocaml.constant 10 : !ocaml.int
           ocaml.yield %4 : !ocaml.int
         } else {
@@ -254,15 +254,15 @@ let%expect_test "if-then-else nested complex" =
         %0 = ocaml.constant 1 : !ocaml.int
         %1 = ocaml.constant 2 : !ocaml.int
         %2 = ocaml.cmp "lt" %0, %1 : !ocaml.int -> !ocaml.bool
-        %3 = ocaml.if_then_else %2 : !ocaml.bool -> !ocaml.int {
+        %3 = ocaml.if_then_else %2 : !ocaml.bool -> !ocaml.int then {
           %5 = ocaml.constant 3 : !ocaml.int
           %6 = ocaml.constant 4 : !ocaml.int
           %7 = ocaml.cmp "lt" %5, %6 : !ocaml.int -> !ocaml.bool
-          %8 = ocaml.if_then_else %7 : !ocaml.bool -> !ocaml.int {
+          %8 = ocaml.if_then_else %7 : !ocaml.bool -> !ocaml.int then {
             %9 = ocaml.constant 5 : !ocaml.int
             %10 = ocaml.constant 6 : !ocaml.int
             %11 = ocaml.cmp "lt" %9, %10 : !ocaml.int -> !ocaml.bool
-            %12 = ocaml.if_then_else %11 : !ocaml.bool -> !ocaml.int {
+            %12 = ocaml.if_then_else %11 : !ocaml.bool -> !ocaml.int then {
               %13 = ocaml.constant 10 : !ocaml.int
               ocaml.yield %13 : !ocaml.int
             } else {
@@ -274,7 +274,7 @@ let%expect_test "if-then-else nested complex" =
             %9 = ocaml.constant 7 : !ocaml.int
             %10 = ocaml.constant 8 : !ocaml.int
             %11 = ocaml.cmp "lt" %9, %10 : !ocaml.int -> !ocaml.bool
-            %12 = ocaml.if_then_else %11 : !ocaml.bool -> !ocaml.int {
+            %12 = ocaml.if_then_else %11 : !ocaml.bool -> !ocaml.int then {
               %13 = ocaml.constant 30 : !ocaml.int
               ocaml.yield %13 : !ocaml.int
             } else {
@@ -288,7 +288,7 @@ let%expect_test "if-then-else nested complex" =
           %5 = ocaml.constant 9 : !ocaml.int
           %6 = ocaml.constant 10 : !ocaml.int
           %7 = ocaml.cmp "lt" %5, %6 : !ocaml.int -> !ocaml.bool
-          %8 = ocaml.if_then_else %7 : !ocaml.bool -> !ocaml.int {
+          %8 = ocaml.if_then_else %7 : !ocaml.bool -> !ocaml.int then {
             %9 = ocaml.constant 50 : !ocaml.int
             ocaml.yield %9 : !ocaml.int
           } else {
@@ -490,7 +490,7 @@ let%expect_test "if-then-else float" =
         %0 = ocaml.constant 3.000000e+00 : f64 : !ocaml.float
         %1 = ocaml.constant 5.000000e+00 : f64 : !ocaml.float
         %2 = ocaml.cmp "lt" %0, %1 : !ocaml.float -> !ocaml.bool
-        %3 = ocaml.if_then_else %2 : !ocaml.bool -> !ocaml.float {
+        %3 = ocaml.if_then_else %2 : !ocaml.bool -> !ocaml.float then {
           %4 = ocaml.constant 1.000000e+01 : f64 : !ocaml.float
           ocaml.yield %4 : !ocaml.float
         } else {
@@ -600,7 +600,7 @@ let%expect_test "if-then basic" =
         %0 = ocaml.constant 3 : !ocaml.int
         %1 = ocaml.constant 5 : !ocaml.int
         %2 = ocaml.cmp "lt" %0, %1 : !ocaml.int -> !ocaml.bool
-        %3 = ocaml.if_then_else %2 : !ocaml.bool -> !ocaml.unit {
+        %3 = ocaml.if_then_else %2 : !ocaml.bool -> !ocaml.unit then {
           %4 = ocaml.constant unit : !ocaml.unit
           ocaml.yield %4 : !ocaml.unit
         } else {
