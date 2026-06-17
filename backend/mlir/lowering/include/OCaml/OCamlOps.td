@@ -115,8 +115,8 @@ def IfThenElseOp : OCaml_Op<"if_then_else"> {
   }];
   let arguments = (ins BoolType:$cond);
   let results = (outs AnyType:$result);
-  let regions = (region SizedRegion<1>:$then_region,
-                        SizedRegion<1>:$else_region);
+  let regions = (region AnyRegion:$then_region,
+                        AnyRegion:$else_region);
   let assemblyFormat =
       "$cond attr-dict `:` type($cond) `->` type($result) $then_region `else` $else_region";
   let hasVerifier = 1;
