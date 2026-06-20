@@ -7,7 +7,6 @@ let%expect_test "arithmetic" =
         "\n\
         \    external ( + ) : int -> int -> int = \"%addint\"\n\
         \    external ( * ) : int -> int -> int = \"%mulint\"\n\
-        \    let add a b = a + b\n\
         \    let res = 1 + 2 * 3\n\
         \  "
   in
@@ -24,9 +23,9 @@ let%expect_test "arithmetic" =
       } loc(#loc)
     } loc(#loc)
     #loc = loc(unknown)
-    #loc1 = loc("arith.ml":5:15)
-    #loc2 = loc("arith.ml":5:19)
-    #loc3 = loc("arith.ml":5:23)
+    #loc1 = loc("arith.ml":4:15)
+    #loc2 = loc("arith.ml":4:19)
+    #loc3 = loc("arith.ml":4:23)
     |}];
   verify_std_mlir t;
   [%expect

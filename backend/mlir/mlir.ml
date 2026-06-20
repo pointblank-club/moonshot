@@ -1,3 +1,4 @@
+module Ocaml_location = Location
 open Omlir
 module StringSet = Set.Make (String)
 
@@ -394,7 +395,7 @@ let rec compile_expr env builder module_block block created_externs
       (compile_expr env builder module_block block created_externs first
         : Value.t option);
     compile_expr env builder module_block block created_externs second
-  | _ -> None
+  | _ -> Ocaml_location.raise_errorf ~loc:expr.exp_loc "unsupported expression"
 
 let compile_structure builder module_block entry_block created_externs
     (impl : Typedtree.implementation) =
