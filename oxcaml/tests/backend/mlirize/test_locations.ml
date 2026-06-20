@@ -49,3 +49,25 @@ let%expect_test "distinct locations" =
     #loc2 = loc("multiloc.ml":3:13)
     #loc3 = loc("multiloc.ml":4:13)
     |}]
+
+(* ocamlformat: disable test for unimplemented expresssions*)
+let%expect_test "unsupported expression diagnostic" =
+  let t =
+    test_compile ~name:"unsupported"
+      ~code:
+        "\n\
+        \    (* This is a long comment to force the formatter to keep the \
+         string multiline *)\n\
+        \    let x = (1, 2)\n\
+        \  "
+  in
+  verify_build_stdout t;
+  [%expect
+    {|
+    Compiler exited with status 2
+    Compiling module Unsupported to MLIR
+    File "unsupported.ml", line 3, characters 12-18:
+    3 |     let x = (1, 2)
+                    ^^^^^^
+    Error: unsupported expression
+    |}]
