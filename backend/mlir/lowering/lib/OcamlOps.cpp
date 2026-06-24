@@ -8,10 +8,61 @@
 #include "mlir/Transforms/DialectConversion.h"
 
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringExtras.h"
+#include "llvm/ADT/Twine.h"
 
 using namespace mlir;
 
 namespace {
+
+/// Emits a call to a compiled-OCaml symbol using OCaml's native calling
+/// convention. OCaml passes integer/pointer arguments tagged in
+/// rax, rbx, rdi, rsi, rdx, rcx, r8, r9, r12, r13 and returns the result in
+/// rax (see backend/amd64/proc.ml). LLVM has no such calling convention, so
+/// the call is lowered to inline assembly that pins each argument to its
+/// expected register.
+LogicalResult emitOcamlCall(ConversionPatternRewriter &rewriter,
+                            ocaml::ExternCallOp op, StringRef target,
+                            ArrayRef<Value> args,
+                            const TypeConverter &typeConverter) {
+  static const char *const argReg[10] = {"{ax}",  "{bx}", "{di}", "{si}",
+                                         "{dx}",  "{cx}", "{r8}", "{r9}",
+                                         "{r12}", "{r13}"};
+  static const char *const argClobber[10] = {
+      "~{rax}", "~{rbx}", "~{rdi}", "~{rsi}", "~{rdx}",
+      "~{rcx}", "~{r8}",  "~{r9}",  "~{r12}", "~{r13}"};
+  if (args.size() > 10) {
+    return rewriter.notifyMatchFailure(op, "too many OCaml call arguments");
+  }
+
+  SmallVector<std::string> parts;
+  parts.push_back("={ax}");
+  for (size_t i = 0; i < args.size(); ++i) {
+    // Argument 0 shares rax with the result, so tie it to the output.
+    parts.push_back(i == 0 ? std::string("0") : std::string(argReg[i]));
+  }
+  for (size_t i = std::max<size_t>(args.size(), 1); i < 10; ++i) {
+    parts.push_back(argClobber[i]);
+  }
+  parts.push_back("~{r10}");
+  parts.push_back("~{r11}");
+  for (int i = 0; i < 16; ++i) {
+    parts.push_back("~{xmm" + std::to_string(i) + "}");
+  }
+  parts.push_back("~{memory}");
+  parts.push_back("~{cc}");
+
+  std::string constraints = llvm::join(parts, ",");
+  std::string asmStr = (Twine("call ") + target).str();
+  Type resultType = typeConverter.convertType(op.getType());
+  auto asmOp = LLVM::InlineAsmOp::create(
+      rewriter, op.getLoc(), resultType, args, asmStr, constraints,
+      /*has_side_effects=*/true, /*is_align_stack=*/true,
+      LLVM::tailcallkind::TailCallKind::None, LLVM::AsmDialectAttr{},
+      ArrayAttr{});
+  rewriter.replaceOp(op, asmOp->getResult(0));
+  return success();
+}
 
 /// Finds the target symbol name for an external OCaml declaration.
 std::optional<std::string> findExternTarget(ocaml::ModuleOp module,
@@ -109,6 +160,12 @@ struct ExternCallOpLowering : public OpConversionPattern<ocaml::ExternCallOp> {
     }
 
     SmallVector<Value> args(adaptor.getArgs().begin(), adaptor.getArgs().end());
+
+    // Compiled-OCaml callees (symbols ending in "_code") follow OCaml's native
+    // calling convention rather than the C ABI, and expect tagged values.
+    if (StringRef(*target).ends_with("_code")) {
+      return emitOcamlCall(rewriter, op, *target, args, *getTypeConverter());
+    }
 
     auto i64Type = rewriter.getI64Type();
     for (Operation &child : parent_module.getBody().front()) {
