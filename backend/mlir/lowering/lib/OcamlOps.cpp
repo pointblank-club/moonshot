@@ -355,6 +355,58 @@ struct BinOpLowering : public OpConversionPattern<ocaml::BinOp> {
                                        divShifted.getResult(), one.getResult());
         rewriter.replaceOp(op, res.getResult());
         return success();
+      } else if (opName == "land") {
+        auto res = LLVM::AndOp::create(rewriter, loc, i64Type, lhs, rhs);
+        rewriter.replaceOp(op, res.getResult());
+        return success();
+      } else if (opName == "lor") {
+        auto res = LLVM::OrOp::create(rewriter, loc, i64Type, lhs, rhs);
+        rewriter.replaceOp(op, res.getResult());
+        return success();
+      } else if (opName == "lxor") {
+        auto one = LLVM::ConstantOp::create(rewriter, loc, i64Type, 1ULL);
+        auto xored = LLVM::XOrOp::create(rewriter, loc, i64Type, lhs, rhs);
+        auto res = LLVM::OrOp::create(rewriter, loc, i64Type, xored.getResult(),
+                                      one.getResult());
+        rewriter.replaceOp(op, res.getResult());
+        return success();
+      } else if (opName == "lsl") {
+        auto one = LLVM::ConstantOp::create(rewriter, loc, i64Type, 1ULL);
+        auto count =
+            LLVM::AShrOp::create(rewriter, loc, i64Type, rhs, one.getResult());
+        auto lhsUntagged =
+            LLVM::SubOp::create(rewriter, loc, i64Type, lhs, one.getResult());
+        auto shifted = LLVM::ShlOp::create(
+            rewriter, loc, i64Type, lhsUntagged.getResult(), count.getResult());
+        auto res = LLVM::OrOp::create(rewriter, loc, i64Type,
+                                      shifted.getResult(), one.getResult());
+        rewriter.replaceOp(op, res.getResult());
+        return success();
+      } else if (opName == "lsr" || opName == "asr") {
+        auto one = LLVM::ConstantOp::create(rewriter, loc, i64Type, 1ULL);
+        auto count =
+            LLVM::AShrOp::create(rewriter, loc, i64Type, rhs, one.getResult());
+        Value lhsUntagged = opName == "lsr"
+                                ? LLVM::LShrOp::create(rewriter, loc, i64Type,
+                                                       lhs, one.getResult())
+                                      .getResult()
+                                : LLVM::AShrOp::create(rewriter, loc, i64Type,
+                                                       lhs, one.getResult())
+                                      .getResult();
+        Value shifted =
+            opName == "lsr"
+                ? LLVM::LShrOp::create(rewriter, loc, i64Type, lhsUntagged,
+                                       count.getResult())
+                      .getResult()
+                : LLVM::AShrOp::create(rewriter, loc, i64Type, lhsUntagged,
+                                       count.getResult())
+                      .getResult();
+        auto retagged = LLVM::ShlOp::create(rewriter, loc, i64Type, shifted,
+                                            one.getResult());
+        auto res = LLVM::OrOp::create(rewriter, loc, i64Type,
+                                      retagged.getResult(), one.getResult());
+        rewriter.replaceOp(op, res.getResult());
+        return success();
       }
       return failure();
     }
