@@ -270,3 +270,4 @@ main_build_profile = @main_build_profile@
 opam = @opam@
 opam_switch = @opam_switch@
 opam_exec = @opam_exec@
+LLVM_PREFIX = @LLVM_PREFIX@

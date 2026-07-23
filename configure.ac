@@ -468,6 +468,7 @@ AC_SUBST([ocaml_libdir])
 AC_SUBST([QS])
 AC_SUBST([ar_supports_response_files])
 AC_SUBST([target_bindir])
+AC_SUBST([LLVM_PREFIX])
 
 ## Generated files
 
@@ -762,6 +763,15 @@ AC_ARG_WITH([target-bindir],
     [location of the runtime binaries on the target system])],
   [target_bindir=$withval],
   [target_bindir=''])
+
+AC_ARG_WITH([llvm-prefix],
+  [AS_HELP_STRING([--with-llvm-prefix=PATH],
+    [Path to LLVM build or install prefix])],
+  [LLVM_PREFIX=$withval],
+  [AC_PATH_PROG([LLVM_CONFIG], [llvm-config], [])
+   AS_IF([test -n "$LLVM_CONFIG"],
+     [LLVM_PREFIX=$($LLVM_CONFIG --prefix)],
+     [LLVM_PREFIX="/usr"])])
 
 AC_ARG_WITH([target-sh],
   [AS_HELP_STRING([--with-target-sh],

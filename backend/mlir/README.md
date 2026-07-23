@@ -14,6 +14,9 @@ opam switch create . 5.4.1
 autoconf
 ./configure --prefix=/path/to/install/dir
 
+# If using a custom LLVM/MLIR build:
+# ./configure --prefix=/path/to/install/dir --with-llvm-prefix=/path/to/llvm/build
+
 make install
 ```
 
