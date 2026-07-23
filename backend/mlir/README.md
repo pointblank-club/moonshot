@@ -2,7 +2,11 @@
 
 ## Building
 
-This project is tested with llvm 22 only. Mlir has to be built with the same version of llvm.
+This project requires MLIR and LLVM built from https://github.com/pointblank-club/llvm-project/tree/ocaml-cc.
+
+Build llvm-project as per the llvm [Getting Started](https://llvm.org/docs/GettingStarted.html#getting-the-source-code-and-building-llvm) guide.
+
+Building the moonshot compiler requires the following steps:
 
 ```bash
 git clone https://github.com/pointblank-club/moonshot
@@ -12,7 +16,6 @@ git submodule update --init --recursive
 opam switch create . 5.4.1
 
 autoconf
-./configure --prefix=/path/to/install/dir
 
 # If using a custom LLVM/MLIR build:
 # ./configure --prefix=/path/to/install/dir --with-llvm-prefix=/path/to/llvm/build
