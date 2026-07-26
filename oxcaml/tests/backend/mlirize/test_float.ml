@@ -36,7 +36,6 @@ let%expect_test "float" =
       llvm.mlir.global external @camlFloat__data_end(0 : i64) {addr_space = 0 : i32} : i64
       llvm.mlir.global external @camlFloat__code_begin(0 : i64) {addr_space = 0 : i32} : i64
       llvm.mlir.global external @camlFloat__code_end(0 : i64) {addr_space = 0 : i32} : i64
-      llvm.mlir.global external @camlFloat__frametable(0 : i64) {addr_space = 0 : i32} : i64
     }
     |}];
   verify_llvm t;
@@ -52,7 +51,6 @@ let%expect_test "float" =
     @camlFloat__data_end = global i64 0
     @camlFloat__code_begin = global i64 0
     @camlFloat__code_end = global i64 0
-    @camlFloat__frametable = global i64 0
 
     define i64 @camlFloat__entry() {
       ret i64 1
@@ -123,7 +121,6 @@ let%expect_test "float_arith" =
       llvm.mlir.global external @camlFloat_arith__data_end(0 : i64) {addr_space = 0 : i32} : i64
       llvm.mlir.global external @camlFloat_arith__code_begin(0 : i64) {addr_space = 0 : i32} : i64
       llvm.mlir.global external @camlFloat_arith__code_end(0 : i64) {addr_space = 0 : i32} : i64
-      llvm.mlir.global external @camlFloat_arith__frametable(0 : i64) {addr_space = 0 : i32} : i64
     }
     |}];
   verify_llvm t;
@@ -140,7 +137,6 @@ let%expect_test "float_arith" =
     @camlFloat_arith__data_end = global i64 0
     @camlFloat_arith__code_begin = global i64 0
     @camlFloat_arith__code_end = global i64 0
-    @camlFloat_arith__frametable = global i64 0
 
     declare i64 @caml_copy_double(double)
 
@@ -282,7 +278,6 @@ let%expect_test "float_cmp" =
       llvm.mlir.global external @camlFloat_cmp__data_end(0 : i64) {addr_space = 0 : i32} : i64
       llvm.mlir.global external @camlFloat_cmp__code_begin(0 : i64) {addr_space = 0 : i32} : i64
       llvm.mlir.global external @camlFloat_cmp__code_end(0 : i64) {addr_space = 0 : i32} : i64
-      llvm.mlir.global external @camlFloat_cmp__frametable(0 : i64) {addr_space = 0 : i32} : i64
     }
     |}];
   verify_llvm t;
@@ -304,7 +299,6 @@ let%expect_test "float_cmp" =
     @camlFloat_cmp__data_end = global i64 0
     @camlFloat_cmp__code_begin = global i64 0
     @camlFloat_cmp__code_end = global i64 0
-    @camlFloat_cmp__frametable = global i64 0
 
     define i64 @camlFloat_cmp__entry() {
       %1 = load double, ptr getelementptr inbounds nuw (i8, ptr @camlFloat_cmp.1, i64 8), align 8

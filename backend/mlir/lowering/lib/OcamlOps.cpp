@@ -188,7 +188,6 @@ struct ModuleOpLowering : public OpConversionPattern<ocaml::ModuleOp> {
     std::string data_end_name = "caml" + sym_name_str + "__data_end";
     std::string code_begin_name = "caml" + sym_name_str + "__code_begin";
     std::string code_end_name = "caml" + sym_name_str + "__code_end";
-    std::string frametable_name = "caml" + sym_name_str + "__frametable";
 
     rewriter.setInsertionPoint(op);
 
@@ -205,8 +204,6 @@ struct ModuleOpLowering : public OpConversionPattern<ocaml::ModuleOp> {
                            LLVM::Linkage::External, code_begin_name, zeroAttr);
     LLVM::GlobalOp::create(rewriter, loc, i64Type, false,
                            LLVM::Linkage::External, code_end_name, zeroAttr);
-    LLVM::GlobalOp::create(rewriter, loc, i64Type, false,
-                           LLVM::Linkage::External, frametable_name, zeroAttr);
 
     rewriter.eraseOp(op);
     return success();

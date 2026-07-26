@@ -107,7 +107,6 @@ let%expect_test "int comparison" =
       llvm.mlir.global external @camlCompare__data_end(0 : i64) {addr_space = 0 : i32} : i64
       llvm.mlir.global external @camlCompare__code_begin(0 : i64) {addr_space = 0 : i32} : i64
       llvm.mlir.global external @camlCompare__code_end(0 : i64) {addr_space = 0 : i32} : i64
-      llvm.mlir.global external @camlCompare__frametable(0 : i64) {addr_space = 0 : i32} : i64
     }
     |}];
   verify_llvm t;
@@ -121,7 +120,6 @@ let%expect_test "int comparison" =
     @camlCompare__data_end = global i64 0
     @camlCompare__code_begin = global i64 0
     @camlCompare__code_end = global i64 0
-    @camlCompare__frametable = global i64 0
 
     define i64 @camlCompare__entry() {
       ret i64 1

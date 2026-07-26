@@ -100,7 +100,6 @@ let%expect_test "logical operators" =
       llvm.mlir.global external @camlLogical__data_end(0 : i64) {addr_space = 0 : i32} : i64
       llvm.mlir.global external @camlLogical__code_begin(0 : i64) {addr_space = 0 : i32} : i64
       llvm.mlir.global external @camlLogical__code_end(0 : i64) {addr_space = 0 : i32} : i64
-      llvm.mlir.global external @camlLogical__frametable(0 : i64) {addr_space = 0 : i32} : i64
     }
     |}];
   verify_llvm t;
@@ -114,7 +113,6 @@ let%expect_test "logical operators" =
     @camlLogical__data_end = global i64 0
     @camlLogical__code_begin = global i64 0
     @camlLogical__code_end = global i64 0
-    @camlLogical__frametable = global i64 0
 
     define i64 @camlLogical__entry() {
       ret i64 1

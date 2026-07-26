@@ -128,8 +128,15 @@ let test_compile_and_run ~name ~code =
     if bin_exit <> 0
     then
       let build_bin_stdout = read_file (prefix ^ ".build_bin.stdout") in
-      Printf.sprintf "<link failed with exit code %d>\nBuild output:\n%s"
-        bin_exit build_bin_stdout
+      let compile_stdout = read_file (prefix ^ ".stdout") in
+      Printf.sprintf
+        "<link failed with exit code %d>\n\
+         Compiler used: %s\n\
+         Compile output:\n\
+         %s\n\
+         Link output:\n\
+         %s"
+        bin_exit (find_ocamlopt ()) compile_stdout build_bin_stdout
     else
       let run_cmd =
         Printf.sprintf "./%s.exe > %s.run.stdout 2>&1" prefix prefix

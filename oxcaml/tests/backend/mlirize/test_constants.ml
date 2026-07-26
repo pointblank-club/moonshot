@@ -35,7 +35,6 @@ let%expect_test "constants" =
       llvm.mlir.global external @camlConstants__data_end(0 : i64) {addr_space = 0 : i32} : i64
       llvm.mlir.global external @camlConstants__code_begin(0 : i64) {addr_space = 0 : i32} : i64
       llvm.mlir.global external @camlConstants__code_end(0 : i64) {addr_space = 0 : i32} : i64
-      llvm.mlir.global external @camlConstants__frametable(0 : i64) {addr_space = 0 : i32} : i64
     }
     |}];
   verify_llvm t;
@@ -50,7 +49,6 @@ let%expect_test "constants" =
     @camlConstants__data_end = global i64 0
     @camlConstants__code_begin = global i64 0
     @camlConstants__code_end = global i64 0
-    @camlConstants__frametable = global i64 0
 
     define i64 @camlConstants__entry() {
       ret i64 1
@@ -88,7 +86,6 @@ let%expect_test "unit_constant" =
       llvm.mlir.global external @camlUnit_constant__data_end(0 : i64) {addr_space = 0 : i32} : i64
       llvm.mlir.global external @camlUnit_constant__code_begin(0 : i64) {addr_space = 0 : i32} : i64
       llvm.mlir.global external @camlUnit_constant__code_end(0 : i64) {addr_space = 0 : i32} : i64
-      llvm.mlir.global external @camlUnit_constant__frametable(0 : i64) {addr_space = 0 : i32} : i64
     }
     |}];
   verify_llvm t;
@@ -102,7 +99,6 @@ let%expect_test "unit_constant" =
     @camlUnit_constant__data_end = global i64 0
     @camlUnit_constant__code_begin = global i64 0
     @camlUnit_constant__code_end = global i64 0
-    @camlUnit_constant__frametable = global i64 0
 
     define i64 @camlUnit_constant__entry() {
       ret i64 1
