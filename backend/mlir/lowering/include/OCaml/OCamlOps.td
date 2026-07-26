@@ -95,6 +95,7 @@ def ConstantOp : OCaml_Op<"constant", [ConstantLike, Pure]> {
   let arguments = (ins AnyAttr:$value);
   let results = (outs AnyType:$result);
   let hasCustomAssemblyFormat = 1;
+  let hasFolder = 1;
 }
 
 #endif // OCAML_OPS
