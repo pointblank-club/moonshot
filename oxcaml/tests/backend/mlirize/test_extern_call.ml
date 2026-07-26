@@ -48,7 +48,6 @@ let%expect_test "extern call assignment" =
       llvm.mlir.global external @camlExtern_call_assign__data_end(0 : i64) {addr_space = 0 : i32} : i64
       llvm.mlir.global external @camlExtern_call_assign__code_begin(0 : i64) {addr_space = 0 : i32} : i64
       llvm.mlir.global external @camlExtern_call_assign__code_end(0 : i64) {addr_space = 0 : i32} : i64
-      llvm.mlir.global external @camlExtern_call_assign__frametable(0 : i64) {addr_space = 0 : i32} : i64
     }
     |}];
   verify_llvm t;
@@ -63,7 +62,6 @@ let%expect_test "extern call assignment" =
     @camlExtern_call_assign__data_end = global i64 0
     @camlExtern_call_assign__code_begin = global i64 0
     @camlExtern_call_assign__code_end = global i64 0
-    @camlExtern_call_assign__frametable = global i64 0
 
     declare i64 @caml_puts(ptr)
 
@@ -140,7 +138,6 @@ let%expect_test "extern call helpers" =
       llvm.mlir.global external @camlExtern_call_helpers__data_end(0 : i64) {addr_space = 0 : i32} : i64
       llvm.mlir.global external @camlExtern_call_helpers__code_begin(0 : i64) {addr_space = 0 : i32} : i64
       llvm.mlir.global external @camlExtern_call_helpers__code_end(0 : i64) {addr_space = 0 : i32} : i64
-      llvm.mlir.global external @camlExtern_call_helpers__frametable(0 : i64) {addr_space = 0 : i32} : i64
     }
     |}];
   verify_llvm t;
@@ -155,7 +152,6 @@ let%expect_test "extern call helpers" =
     @camlExtern_call_helpers__data_end = global i64 0
     @camlExtern_call_helpers__code_begin = global i64 0
     @camlExtern_call_helpers__code_end = global i64 0
-    @camlExtern_call_helpers__frametable = global i64 0
 
     declare i64 @print_str(ptr)
 

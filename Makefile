@@ -2,6 +2,8 @@ SHELL = /usr/bin/env bash
 ROOTDIR = .
 include Makefile.config_if_required
 export ARCH
+export LLVM_PREFIX
+
 
 dune = $(opam_exec) $(DUNE)
 

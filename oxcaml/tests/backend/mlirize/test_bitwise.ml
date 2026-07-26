@@ -105,6 +105,5 @@ let%expect_test "bitwise and shift" =
       llvm.mlir.global external @camlBitwise__data_end(0 : i64) {addr_space = 0 : i32} : i64
       llvm.mlir.global external @camlBitwise__code_begin(0 : i64) {addr_space = 0 : i32} : i64
       llvm.mlir.global external @camlBitwise__code_end(0 : i64) {addr_space = 0 : i32} : i64
-      llvm.mlir.global external @camlBitwise__frametable(0 : i64) {addr_space = 0 : i32} : i64
     }
     |}]

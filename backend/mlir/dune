@@ -11,7 +11,8 @@
  (foreign_stubs
   (language c)
   (names caml_bindings_stubs))
- (foreign_archives MLIROCaml))
+ (foreign_archives MLIROCaml)
+ (c_library_flags -Wl,-rpath,%{env:LLVM_PREFIX=/usr}/lib))
 
 (rule
  (target libMLIROCaml.a)

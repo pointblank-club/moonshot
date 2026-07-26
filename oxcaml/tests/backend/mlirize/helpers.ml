@@ -128,8 +128,15 @@ let test_compile_and_run ~name ~code =
     if bin_exit <> 0
     then
       let build_bin_stdout = read_file (prefix ^ ".build_bin.stdout") in
-      Printf.sprintf "<link failed with exit code %d>\nBuild output:\n%s"
-        bin_exit build_bin_stdout
+      let compile_stdout = read_file (prefix ^ ".stdout") in
+      Printf.sprintf
+        "<link failed with exit code %d>\n\
+         Compiler used: %s\n\
+         Compile output:\n\
+         %s\n\
+         Link output:\n\
+         %s"
+        bin_exit (find_ocamlopt ()) compile_stdout build_bin_stdout
     else
       let run_cmd =
         Printf.sprintf "./%s.exe > %s.run.stdout 2>&1" prefix prefix
@@ -151,10 +158,22 @@ let verify_build_stdout t =
   then Printf.printf "Compiler exited with status %d\n" t.exit_status;
   Printf.printf "%s" t.stdout
 
-let verify_mlir t = Printf.printf "%s" t.mlir
+let verify_mlir t =
+  if t.exit_status <> 0
+  then
+    Printf.printf "Compiler failed (exit code %d):\n%s\n" t.exit_status t.stdout
+  else Printf.printf "%s" t.mlir
 
-let verify_std_mlir t = Printf.printf "%s" t.std_mlir
+let verify_std_mlir t =
+  if t.exit_status <> 0
+  then
+    Printf.printf "Compiler failed (exit code %d):\n%s\n" t.exit_status t.stdout
+  else Printf.printf "%s" t.std_mlir
 
-let verify_llvm t = Printf.printf "%s" t.llvm
+let verify_llvm t =
+  if t.exit_status <> 0
+  then
+    Printf.printf "Compiler failed (exit code %d):\n%s\n" t.exit_status t.stdout
+  else Printf.printf "%s" t.llvm
 
 let verify_stdout t = Printf.printf "%s" t.run_stdout

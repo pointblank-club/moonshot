@@ -51,7 +51,6 @@ let%expect_test "arithmetic" =
       llvm.mlir.global external @camlArith__data_end(0 : i64) {addr_space = 0 : i32} : i64
       llvm.mlir.global external @camlArith__code_begin(0 : i64) {addr_space = 0 : i32} : i64
       llvm.mlir.global external @camlArith__code_end(0 : i64) {addr_space = 0 : i32} : i64
-      llvm.mlir.global external @camlArith__frametable(0 : i64) {addr_space = 0 : i32} : i64
     }
     |}];
   verify_llvm t;
@@ -65,7 +64,6 @@ let%expect_test "arithmetic" =
     @camlArith__data_end = global i64 0
     @camlArith__code_begin = global i64 0
     @camlArith__code_end = global i64 0
-    @camlArith__frametable = global i64 0
 
     define i64 @camlArith__entry() {
       ret i64 1

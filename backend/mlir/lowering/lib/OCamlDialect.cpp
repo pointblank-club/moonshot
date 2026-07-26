@@ -47,3 +47,5 @@ void ocaml::ConstantOp::print(OpAsmPrinter &p) {
   p.printOptionalAttrDict((*this)->getAttrs(), {"value"});
   p << " : " << getType();
 }
+
+OpFoldResult ocaml::ConstantOp::fold(FoldAdaptor adaptor) { return getValue(); }
