@@ -153,9 +153,55 @@ struct ExternCallOpLowering : public OpConversionPattern<ocaml::ExternCallOp> {
         ensureFunction(rewriter, op.getLoc(), *target, targetType);
 
     rewriter.setInsertionPoint(op);
-    auto callOp = LLVM::CallOp::create(rewriter, op.getLoc(), targetType,
-                                       targetFunc.getName(), args);
-    rewriter.replaceOp(op, callOp.getResult());
+    Location loc = op.getLoc();
+
+    SmallVector<Value> callArgs;
+    // TODO: Use 0 i64s for r12/r14/r15 for now.
+    auto zeroConst = LLVM::ConstantOp::create(rewriter, loc, i64Type, 0ULL);
+    callArgs.push_back(zeroConst); // R14
+    callArgs.push_back(zeroConst); // R15
+
+    auto ptrType = LLVM::LLVMPointerType::get(rewriter.getContext());
+    auto addrOf =
+        LLVM::AddressOfOp::create(rewriter, loc, ptrType, targetFunc.getName());
+    callArgs.push_back(addrOf); // RAX
+
+    callArgs.push_back(zeroConst); // R12
+
+    callArgs.append(args.begin(), args.end()); // C args
+
+    auto cCallDeclType = LLVM::LLVMFunctionType::get(
+        i64Type, {i64Type, i64Type, ptrType, i64Type}, false);
+    rewriter.setInsertionPoint(parent_module);
+    auto cCallFunc =
+        ensureFunction(rewriter, loc, "caml_c_call", cCallDeclType);
+
+    rewriter.setInsertionPoint(op);
+    auto cCallAddr =
+        LLVM::AddressOfOp::create(rewriter, loc, ptrType, cCallFunc.getName());
+
+    SmallVector<Value> operands;
+    operands.push_back(cCallAddr.getResult());
+    operands.append(callArgs.begin(), callArgs.end());
+
+    auto callOp = LLVM::CallOp::create(rewriter, loc, TypeRange{i64Type},
+                                       ValueRange{operands});
+    SmallVector<int32_t> segmentSizes = {static_cast<int32_t>(operands.size()),
+                                         0};
+    callOp->setAttr("operandSegmentSizes",
+                    rewriter.getDenseI32ArrayAttr(segmentSizes));
+    callOp->setAttr("op_bundle_sizes", rewriter.getDenseI32ArrayAttr({}));
+
+    Value result = callOp.getResult();
+    if (resultType != i64Type) {
+      if (llvm::isa<LLVM::LLVMPointerType>(resultType)) {
+        result = LLVM::IntToPtrOp::create(rewriter, loc, resultType, result);
+      } else {
+        result = LLVM::BitcastOp::create(rewriter, loc, resultType, result);
+      }
+    }
+
+    rewriter.replaceOp(op, result);
     return success();
   }
 };

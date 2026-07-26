@@ -34,14 +34,21 @@ let%expect_test "extern call assignment" =
     module {
       llvm.mlir.global external constant @camlExtern_call_assign.1("\FC\0F\00\00\00\00\00\00Hello from C puts!\00\00\00\00\00\05") {addr_space = 0 : i32}
       llvm.func @caml_puts(!llvm.ptr) -> i64
+      llvm.func @caml_c_call(i64, i64, !llvm.ptr, i64) -> i64
       llvm.func @caml_puts_int(i64) -> i64
       llvm.func @camlExtern_call_assign__entry() -> i64 {
         %0 = llvm.mlir.addressof @camlExtern_call_assign.1 : !llvm.ptr
         %1 = llvm.getelementptr %0[8] : (!llvm.ptr) -> !llvm.ptr, i8
-        %2 = llvm.call @caml_puts(%1) : (!llvm.ptr) -> i64
-        %3 = llvm.call @caml_puts_int(%2) : (i64) -> i64
-        %4 = llvm.mlir.constant(1 : i64) : i64
-        llvm.return %4 : i64
+        %2 = llvm.mlir.constant(0 : i64) : i64
+        %3 = llvm.mlir.addressof @caml_puts : !llvm.ptr
+        %4 = llvm.mlir.addressof @caml_c_call : !llvm.ptr
+        %5 = llvm.call %4(%2, %2, %3, %2, %1) : !llvm.ptr, (i64, i64, !llvm.ptr, i64, !llvm.ptr) -> i64
+        %6 = llvm.mlir.constant(0 : i64) : i64
+        %7 = llvm.mlir.addressof @caml_puts_int : !llvm.ptr
+        %8 = llvm.mlir.addressof @caml_c_call : !llvm.ptr
+        %9 = llvm.call %8(%6, %6, %7, %6, %5) : !llvm.ptr, (i64, i64, !llvm.ptr, i64, i64) -> i64
+        %10 = llvm.mlir.constant(1 : i64) : i64
+        llvm.return %10 : i64
       }
       llvm.mlir.global external @camlExtern_call_assign__gc_roots(0 : i64) {addr_space = 0 : i32} : i64
       llvm.mlir.global external @camlExtern_call_assign__data_begin(0 : i64) {addr_space = 0 : i32} : i64
@@ -65,11 +72,13 @@ let%expect_test "extern call assignment" =
 
     declare i64 @caml_puts(ptr)
 
+    declare cc129 i64 @caml_c_call(i64, i64, ptr, i64)
+
     declare i64 @caml_puts_int(i64)
 
     define i64 @camlExtern_call_assign__entry() {
-      %1 = call i64 @caml_puts(ptr getelementptr inbounds nuw (i8, ptr @camlExtern_call_assign.1, i64 8))
-      %2 = call i64 @caml_puts_int(i64 %1)
+      %1 = call cc129 i64 @caml_c_call(i64 0, i64 0, ptr @caml_puts, i64 0, ptr getelementptr inbounds nuw (i8, ptr @camlExtern_call_assign.1, i64 8))
+      %2 = call cc129 i64 @caml_c_call(i64 0, i64 0, ptr @caml_puts_int, i64 0, i64 %1)
       ret i64 1
     }
 
@@ -119,19 +128,26 @@ let%expect_test "extern call helpers" =
     module {
       llvm.mlir.global external constant @camlExtern_call_helpers.1("\FC\0B\00\00\00\00\00\00Hello, MLIR!\00\00\00\03") {addr_space = 0 : i32}
       llvm.func @print_str(!llvm.ptr) -> i64
+      llvm.func @caml_c_call(i64, i64, !llvm.ptr, i64) -> i64
       llvm.func @print_int(i64) -> i64
       llvm.func @camlExtern_call_helpers__entry() -> i64 {
         %0 = llvm.mlir.addressof @camlExtern_call_helpers.1 : !llvm.ptr
         %1 = llvm.getelementptr %0[8] : (!llvm.ptr) -> !llvm.ptr, i8
-        %2 = llvm.call @print_str(%1) : (!llvm.ptr) -> i64
-        %3 = llvm.mlir.constant(83 : i64) : i64
-        %4 = llvm.mlir.constant(3 : i64) : i64
-        %5 = llvm.add %3, %4 : i64
-        %6 = llvm.mlir.constant(1 : i64) : i64
-        %7 = llvm.sub %5, %6 : i64
-        %8 = llvm.call @print_int(%7) : (i64) -> i64
+        %2 = llvm.mlir.constant(0 : i64) : i64
+        %3 = llvm.mlir.addressof @print_str : !llvm.ptr
+        %4 = llvm.mlir.addressof @caml_c_call : !llvm.ptr
+        %5 = llvm.call %4(%2, %2, %3, %2, %1) : !llvm.ptr, (i64, i64, !llvm.ptr, i64, !llvm.ptr) -> i64
+        %6 = llvm.mlir.constant(83 : i64) : i64
+        %7 = llvm.mlir.constant(3 : i64) : i64
+        %8 = llvm.add %6, %7 : i64
         %9 = llvm.mlir.constant(1 : i64) : i64
-        llvm.return %9 : i64
+        %10 = llvm.sub %8, %9 : i64
+        %11 = llvm.mlir.constant(0 : i64) : i64
+        %12 = llvm.mlir.addressof @print_int : !llvm.ptr
+        %13 = llvm.mlir.addressof @caml_c_call : !llvm.ptr
+        %14 = llvm.call %13(%11, %11, %12, %11, %10) : !llvm.ptr, (i64, i64, !llvm.ptr, i64, i64) -> i64
+        %15 = llvm.mlir.constant(1 : i64) : i64
+        llvm.return %15 : i64
       }
       llvm.mlir.global external @camlExtern_call_helpers__gc_roots(0 : i64) {addr_space = 0 : i32} : i64
       llvm.mlir.global external @camlExtern_call_helpers__data_begin(0 : i64) {addr_space = 0 : i32} : i64
@@ -155,11 +171,13 @@ let%expect_test "extern call helpers" =
 
     declare i64 @print_str(ptr)
 
+    declare cc129 i64 @caml_c_call(i64, i64, ptr, i64)
+
     declare i64 @print_int(i64)
 
     define i64 @camlExtern_call_helpers__entry() {
-      %1 = call i64 @print_str(ptr getelementptr inbounds nuw (i8, ptr @camlExtern_call_helpers.1, i64 8))
-      %2 = call i64 @print_int(i64 85)
+      %1 = call cc129 i64 @caml_c_call(i64 0, i64 0, ptr @print_str, i64 0, ptr getelementptr inbounds nuw (i8, ptr @camlExtern_call_helpers.1, i64 8))
+      %2 = call cc129 i64 @caml_c_call(i64 0, i64 0, ptr @print_int, i64 0, i64 85)
       ret i64 1
     }
 
