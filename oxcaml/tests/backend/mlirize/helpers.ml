@@ -158,10 +158,22 @@ let verify_build_stdout t =
   then Printf.printf "Compiler exited with status %d\n" t.exit_status;
   Printf.printf "%s" t.stdout
 
-let verify_mlir t = Printf.printf "%s" t.mlir
+let verify_mlir t =
+  if t.exit_status <> 0
+  then
+    Printf.printf "Compiler failed (exit code %d):\n%s\n" t.exit_status t.stdout
+  else Printf.printf "%s" t.mlir
 
-let verify_std_mlir t = Printf.printf "%s" t.std_mlir
+let verify_std_mlir t =
+  if t.exit_status <> 0
+  then
+    Printf.printf "Compiler failed (exit code %d):\n%s\n" t.exit_status t.stdout
+  else Printf.printf "%s" t.std_mlir
 
-let verify_llvm t = Printf.printf "%s" t.llvm
+let verify_llvm t =
+  if t.exit_status <> 0
+  then
+    Printf.printf "Compiler failed (exit code %d):\n%s\n" t.exit_status t.stdout
+  else Printf.printf "%s" t.llvm
 
 let verify_stdout t = Printf.printf "%s" t.run_stdout
