@@ -11,7 +11,6 @@ class OCaml_Op<string mnemonic, list<Trait> traits = []>
     : Op<OCaml_Dialect, mnemonic, traits>;
 
 def ModuleOp : OCaml_Op<"module", [
-    IsolatedFromAbove,
     NoRegionArguments,
     Symbol,
     SymbolTable,
