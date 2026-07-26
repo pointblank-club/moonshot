@@ -48,6 +48,4 @@ void ocaml::ConstantOp::print(OpAsmPrinter &p) {
   p << " : " << getType();
 }
 
-OpFoldResult ocaml::ConstantOp::fold(FoldAdaptor adaptor) {
-  return getValue();
-}
+OpFoldResult ocaml::ConstantOp::fold(FoldAdaptor adaptor) { return getValue(); }
