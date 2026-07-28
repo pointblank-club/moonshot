@@ -153,9 +153,89 @@ struct ExternCallOpLowering : public OpConversionPattern<ocaml::ExternCallOp> {
         ensureFunction(rewriter, op.getLoc(), *target, targetType);
 
     rewriter.setInsertionPoint(op);
-    auto callOp = LLVM::CallOp::create(rewriter, op.getLoc(), targetType,
-                                       targetFunc.getName(), args);
-    rewriter.replaceOp(op, callOp.getResult());
+    Location loc = op.getLoc();
+
+    auto ptrType = LLVM::LLVMPointerType::get(rewriter.getContext());
+
+    // Ensure caml_state is declared as external thread-local global ptr
+    LLVM::GlobalOp camlStateGlobal;
+    auto stdModule = op->getParentOfType<ModuleOp>();
+    if (stdModule) {
+      camlStateGlobal = dyn_cast_or_null<LLVM::GlobalOp>(
+          SymbolTable::lookupSymbolIn(stdModule, "caml_state"));
+    }
+    if (!camlStateGlobal) {
+      OpBuilder::InsertionGuard guard(rewriter);
+      rewriter.setInsertionPoint(parent_module);
+      camlStateGlobal = LLVM::GlobalOp::create(
+          rewriter, loc, ptrType, /*isConstant=*/false, LLVM::Linkage::External,
+          "caml_state", /*value=*/nullptr);
+      camlStateGlobal.setThreadLocal_(true);
+    }
+
+    // Load Caml_state pointer (R14)
+    auto camlStateSymbol =
+        LLVM::AddressOfOp::create(rewriter, loc, ptrType, "caml_state");
+    auto camlState =
+        LLVM::LoadOp::create(rewriter, loc, ptrType, camlStateSymbol);
+    auto camlStateInt =
+        LLVM::PtrToIntOp::create(rewriter, loc, i64Type, camlState);
+
+    // Load young_ptr value (R15) at offset 8 bytes inside domain state
+    auto youngPtrAddr =
+        LLVM::GEPOp::create(rewriter, loc, ptrType, rewriter.getI8Type(),
+                            camlState, ArrayRef<LLVM::GEPArg>{8});
+    auto youngPtrPtr =
+        LLVM::LoadOp::create(rewriter, loc, ptrType, youngPtrAddr);
+    auto youngPtr =
+        LLVM::PtrToIntOp::create(rewriter, loc, i64Type, youngPtrPtr);
+
+    SmallVector<Value> callArgs;
+    callArgs.push_back(camlStateInt); // R14
+    callArgs.push_back(youngPtr);     // R15
+
+    auto addrOf =
+        LLVM::AddressOfOp::create(rewriter, loc, ptrType, targetFunc.getName());
+    callArgs.push_back(addrOf); // RAX
+
+    // TODO: use 0 value for unimplemented R12 register for now
+    auto zeroConst = LLVM::ConstantOp::create(rewriter, loc, i64Type, 0ULL);
+    callArgs.push_back(zeroConst); // R12
+
+    callArgs.append(args.begin(), args.end()); // C args
+
+    auto cCallDeclType = LLVM::LLVMFunctionType::get(
+        i64Type, {i64Type, i64Type, ptrType, i64Type}, false);
+    rewriter.setInsertionPoint(parent_module);
+    auto cCallFunc =
+        ensureFunction(rewriter, loc, "caml_c_call", cCallDeclType);
+
+    rewriter.setInsertionPoint(op);
+    auto cCallAddr =
+        LLVM::AddressOfOp::create(rewriter, loc, ptrType, cCallFunc.getName());
+
+    SmallVector<Value> operands;
+    operands.push_back(cCallAddr.getResult());
+    operands.append(callArgs.begin(), callArgs.end());
+
+    auto callOp = LLVM::CallOp::create(rewriter, loc, TypeRange{i64Type},
+                                       ValueRange{operands});
+    SmallVector<int32_t> segmentSizes = {static_cast<int32_t>(operands.size()),
+                                         0};
+    callOp->setAttr("operandSegmentSizes",
+                    rewriter.getDenseI32ArrayAttr(segmentSizes));
+    callOp->setAttr("op_bundle_sizes", rewriter.getDenseI32ArrayAttr({}));
+
+    Value result = callOp.getResult();
+    if (resultType != i64Type) {
+      if (llvm::isa<LLVM::LLVMPointerType>(resultType)) {
+        result = LLVM::IntToPtrOp::create(rewriter, loc, resultType, result);
+      } else {
+        result = LLVM::BitcastOp::create(rewriter, loc, resultType, result);
+      }
+    }
+
+    rewriter.replaceOp(op, result);
     return success();
   }
 };

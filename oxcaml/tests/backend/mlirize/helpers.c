@@ -1,6 +1,6 @@
+#include <caml/mlvalues.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <caml/mlvalues.h>
 
 CAMLprim value print_int(value v) {
   printf("%ld\n", (long)Int_val(v));
@@ -26,3 +26,18 @@ value caml_copy_double(double d) {
   *data = d;
   return (value)data;
 }
+
+/* Stub for caml_c_call as the runtime is not linked. */
+#ifdef __x86_64__
+__asm__(".globl caml_c_call\n"
+        "caml_c_call:\n"
+        "    pushq %rbp\n"
+        "    movq %rsp, %rbp\n"
+        "    callq *%rax\n"
+        "    popq %rbp\n"
+        "    retq\n");
+#endif
+
+/* Mock domain state and thread-local caml_state pointer for tests */
+static caml_domain_state mock_domain_state;
+__thread caml_domain_state* caml_state = &mock_domain_state;

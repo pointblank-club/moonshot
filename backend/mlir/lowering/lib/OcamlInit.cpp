@@ -9,6 +9,8 @@
 #include "mlir/Parser/Parser.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Target/LLVMIR/Export.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/FileSystem.h"
@@ -26,6 +28,9 @@
 #include <caml/fail.h>
 #include <caml/memory.h>
 #include <caml/mlvalues.h>
+
+inline constexpr int OCaml_CC = 128;
+inline constexpr int OCaml_C_Call_CC = 129;
 
 extern "C" {
 CAMLprim value mlirContextRegisterOCamlDialect(value v_ctx_ptr) {
@@ -103,6 +108,16 @@ CAMLprim value OcamlLoweringInit(value v_ctx_ptr, value v_op_ptr,
       mlir::translateModuleToLLVMIR(module, llvm_ctx);
   if (!llvm_mod) {
     caml_failwith("Failed to translate MLIR to LLVM IR");
+  }
+
+  if (auto *f = llvm_mod->getFunction("caml_c_call")) {
+    f->setCallingConv(static_cast<llvm::CallingConv::ID>(OCaml_C_Call_CC));
+    for (auto *user : f->users()) {
+      if (auto *call = llvm::dyn_cast<llvm::CallBase>(user)) {
+        call->setCallingConv(
+            static_cast<llvm::CallingConv::ID>(OCaml_C_Call_CC));
+      }
+    }
   }
 
   if (!source_filename.empty()) {
