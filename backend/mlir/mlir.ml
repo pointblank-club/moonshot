@@ -269,6 +269,57 @@ let is_int_type = is_constr_type Predef.path_int
 
 let is_float_type = is_constr_type Predef.path_float
 
+let find_linkage_name cu field_name =
+  let cu_prefix =
+    Symbol.for_compilation_unit cu
+    |> Symbol.linkage_name |> Linkage_name.to_string
+  in
+  let target_prefix = cu_prefix ^ "__" ^ field_name in
+  match Compilenv.get_unit_export_info cu with
+  | None -> target_prefix
+  | Some cmx -> (
+    let typing_env, _ =
+      Flambda2_cmx.Flambda_cmx_format.import_typing_env_and_code cmx
+    in
+    let names = Flambda2_types.Typing_env.Serializable.name_domain typing_env in
+    let found = ref None in
+    Flambda2_identifiers.Name.Set.iter
+      (fun name ->
+        Flambda2_identifiers.Name.pattern_match name
+          ~var:(fun _var -> ())
+          ~symbol:(fun sym ->
+            let linkage_str =
+              Flambda2_identifiers.Symbol.linkage_name_as_string sym
+            in
+            if
+              linkage_str = target_prefix
+              || String.length linkage_str > String.length target_prefix
+                 && String.sub linkage_str 0 (String.length target_prefix + 1)
+                    = target_prefix ^ "_"
+            then found := Some linkage_str))
+      names;
+    match !found with Some name -> name | None -> target_prefix)
+
+let create_call builder loc block module_name_opt function_name mangled_name
+    args res_type =
+  let ctx = builder.Builders.OpBuilder.ctx in
+  let state = Operation.State.get "ocaml.call" loc in
+  let attrs =
+    [ named_string_attr ctx "function_name" function_name;
+      named_string_attr ctx "mangled_name" mangled_name ]
+  in
+  let attrs =
+    match module_name_opt with
+    | Some mod_name -> named_string_attr ctx "module_name" mod_name :: attrs
+    | None -> attrs
+  in
+  Operation.State.add_attributes state attrs;
+  Operation.State.add_operands state args;
+  Operation.State.add_results state [res_type];
+  let op = Operation.create state in
+  append block op;
+  Operation.get_result op 0
+
 let rec compile_expr env builder module_block block created_externs
     (expr : Typedtree.expression) =
   let loc = file_line_col_loc builder expr.exp_loc.loc_start in
@@ -401,6 +452,54 @@ let rec compile_expr env builder module_block block created_externs
       (compile_expr env builder module_block block created_externs first
         : Value.t option);
     compile_expr env builder module_block block created_externs second
+  | Texp_apply (func, args, _, _, _) -> (
+    let arg_values =
+      List.filter_map
+        (fun (_label, arg) ->
+          match arg with
+          | Typedtree.Arg (expr, _) ->
+            compile_expr env builder module_block block created_externs expr
+          | Typedtree.Omitted _ -> None)
+        args
+    in
+    match func.exp_desc with
+    | Texp_ident { path; _ } -> (
+      let address_opt =
+        try Some (Env.find_value_address path expr.exp_env) with _ -> None
+      in
+      match address_opt with
+      | Some address -> (
+        let resolved =
+          try
+            match address with
+            | Env.Alocal id ->
+              let sym = Symbol.for_local_ident id in
+              let mangled = Symbol.linkage_name sym |> Linkage_name.to_string in
+              Some (None, Ident.name id, mangled)
+            | Env.Adot (Env.Aunit cu, _, _pos) ->
+              let field_name = Path.last path in
+              let mangled = find_linkage_name cu field_name in
+              let mod_name = Compilation_unit.name_as_string cu in
+              Some (Some mod_name, field_name, mangled)
+            | Env.Aunit cu ->
+              let sym = Symbol.for_compilation_unit cu in
+              let mangled = Symbol.linkage_name sym |> Linkage_name.to_string in
+              let mod_name = Compilation_unit.name_as_string cu in
+              Some (Some mod_name, Path.last path, mangled)
+            | _ -> None
+          with _ -> None
+        in
+        match resolved with
+        | Some (module_name_opt, function_name, mangled_name) ->
+          let res_type =
+            map_ocaml_type_to_mlir builder.Builders.OpBuilder.ctx expr.exp_type
+          in
+          Some
+            (create_call builder loc block module_name_opt function_name
+               mangled_name arg_values res_type)
+        | None -> None)
+      | None -> None)
+    | _ -> None)
   | _ -> Ocaml_location.raise_errorf ~loc:expr.exp_loc "unsupported expression"
 
 let compile_structure builder module_block entry_block created_externs
