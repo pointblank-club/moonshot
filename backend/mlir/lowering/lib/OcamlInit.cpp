@@ -21,8 +21,8 @@
 #include "llvm/TargetParser/Host.h"
 #include "llvm/TargetParser/Triple.h"
 
-#include <optional>
 #include <cstdlib>
+#include <optional>
 
 #ifndef OXCAML_COMMIT_ID
 #define OXCAML_COMMIT_ID "unknown"
