@@ -81,7 +81,7 @@ let test_compile_impl ~cleanup ~name ~code =
   (* Run compiler *)
   let cmd =
     Printf.sprintf
-      "env OCAML_COLOR=never %s -nostdlib -nopervasives -mlir-backend -ccopt \
+      "env OCAML_COLOR=never OXCAML_TEST=1 %s -nostdlib -nopervasives -mlir-backend -ccopt \
        -I%s -c %s.ml helpers.c > %s.stdout 2>&1"
       ocamlopt ocamllib prefix prefix
   in

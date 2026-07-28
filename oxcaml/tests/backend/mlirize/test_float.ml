@@ -57,8 +57,10 @@ let%expect_test "float" =
     }
 
     !llvm.module.flags = !{!0}
+    !llvm.ident = !{!1}
 
     !0 = !{i32 2, !"Debug Info Version", i32 3}
+    !1 = !{!"OCaml MLIR dialect unknown"}
     |}]
 
 let%expect_test "float_arith" =
@@ -155,8 +157,10 @@ let%expect_test "float_arith" =
     }
 
     !llvm.module.flags = !{!0}
+    !llvm.ident = !{!1}
 
     !0 = !{i32 2, !"Debug Info Version", i32 3}
+    !1 = !{!"OCaml MLIR dialect unknown"}
     |}]
 
 let%expect_test "float_arith_run" =
@@ -321,8 +325,10 @@ let%expect_test "float_cmp" =
     }
 
     !llvm.module.flags = !{!0}
+    !llvm.ident = !{!1}
 
     !0 = !{i32 2, !"Debug Info Version", i32 3}
+    !1 = !{!"OCaml MLIR dialect unknown"}
     |}]
 
 let%expect_test "float_cmp_run" =

@@ -119,6 +119,8 @@ let%expect_test "logical operators" =
     }
 
     !llvm.module.flags = !{!0}
+    !llvm.ident = !{!1}
 
     !0 = !{i32 2, !"Debug Info Version", i32 3}
+    !1 = !{!"OCaml MLIR dialect unknown"}
     |}]
