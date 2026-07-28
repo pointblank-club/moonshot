@@ -55,8 +55,10 @@ let%expect_test "constants" =
     }
 
     !llvm.module.flags = !{!0}
+    !llvm.ident = !{!1}
 
     !0 = !{i32 2, !"Debug Info Version", i32 3}
+    !1 = !{!"OCaml MLIR dialect unknown"}
     |}]
 
 let%expect_test "unit_constant" =
@@ -105,6 +107,8 @@ let%expect_test "unit_constant" =
     }
 
     !llvm.module.flags = !{!0}
+    !llvm.ident = !{!1}
 
     !0 = !{i32 2, !"Debug Info Version", i32 3}
+    !1 = !{!"OCaml MLIR dialect unknown"}
     |}]
