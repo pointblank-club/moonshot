@@ -33,5 +33,17 @@ if(OCAML_INCLUDE_DIR)
   include_directories(${OCAML_INCLUDE_DIR})
 endif()
 
+execute_process(
+  COMMAND git rev-parse --short HEAD
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  OUTPUT_VARIABLE GIT_COMMIT_ID
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+  ERROR_QUIET
+)
+if(NOT GIT_COMMIT_ID)
+  set(GIT_COMMIT_ID "unknown")
+endif()
+add_compile_definitions(OXCAML_COMMIT_ID="${GIT_COMMIT_ID}")
+
 add_subdirectory(include/OCaml)
 add_subdirectory(lib)

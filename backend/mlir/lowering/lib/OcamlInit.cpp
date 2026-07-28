@@ -23,6 +23,10 @@
 
 #include <optional>
 
+#ifndef OXCAML_COMMIT_ID
+#define OXCAML_COMMIT_ID "unknown"
+#endif
+
 #define CAML_NAME_SPACE
 #include <caml/alloc.h>
 #include <caml/fail.h>
@@ -119,6 +123,13 @@ CAMLprim value OcamlLoweringInit(value v_ctx_ptr, value v_op_ptr,
       }
     }
   }
+
+  llvm::NamedMDNode *identMetadata =
+      llvm_mod->getOrInsertNamedMetadata("llvm.ident");
+  llvm::Metadata *identString =
+      llvm::MDString::get(llvm_ctx, "OCaml MLIR dialect " OXCAML_COMMIT_ID);
+  llvm::MDNode *identNode = llvm::MDNode::get(llvm_ctx, {identString});
+  identMetadata->addOperand(identNode);
 
   if (!source_filename.empty()) {
     llvm_mod->setModuleIdentifier(source_filename);
