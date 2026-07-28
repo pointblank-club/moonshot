@@ -155,17 +155,51 @@ struct ExternCallOpLowering : public OpConversionPattern<ocaml::ExternCallOp> {
     rewriter.setInsertionPoint(op);
     Location loc = op.getLoc();
 
-    SmallVector<Value> callArgs;
-    // TODO: Use 0 i64s for r12/r14/r15 for now.
-    auto zeroConst = LLVM::ConstantOp::create(rewriter, loc, i64Type, 0ULL);
-    callArgs.push_back(zeroConst); // R14
-    callArgs.push_back(zeroConst); // R15
-
     auto ptrType = LLVM::LLVMPointerType::get(rewriter.getContext());
+
+    // Ensure caml_state is declared as external thread-local global ptr
+    LLVM::GlobalOp camlStateGlobal;
+    auto stdModule = op->getParentOfType<ModuleOp>();
+    if (stdModule) {
+      camlStateGlobal = dyn_cast_or_null<LLVM::GlobalOp>(
+          SymbolTable::lookupSymbolIn(stdModule, "caml_state"));
+    }
+    if (!camlStateGlobal) {
+      OpBuilder::InsertionGuard guard(rewriter);
+      rewriter.setInsertionPoint(parent_module);
+      camlStateGlobal = LLVM::GlobalOp::create(
+          rewriter, loc, ptrType, /*isConstant=*/false, LLVM::Linkage::External,
+          "caml_state", /*value=*/nullptr);
+      camlStateGlobal.setThreadLocal_(true);
+    }
+
+    // Load Caml_state pointer (R14)
+    auto camlStateSymbol =
+        LLVM::AddressOfOp::create(rewriter, loc, ptrType, "caml_state");
+    auto camlState =
+        LLVM::LoadOp::create(rewriter, loc, ptrType, camlStateSymbol);
+    auto camlStateInt =
+        LLVM::PtrToIntOp::create(rewriter, loc, i64Type, camlState);
+
+    // Load young_ptr value (R15) at offset 8 bytes inside domain state
+    auto youngPtrAddr =
+        LLVM::GEPOp::create(rewriter, loc, ptrType, rewriter.getI8Type(),
+                            camlState, ArrayRef<LLVM::GEPArg>{8});
+    auto youngPtrPtr =
+        LLVM::LoadOp::create(rewriter, loc, ptrType, youngPtrAddr);
+    auto youngPtr =
+        LLVM::PtrToIntOp::create(rewriter, loc, i64Type, youngPtrPtr);
+
+    SmallVector<Value> callArgs;
+    callArgs.push_back(camlStateInt); // R14
+    callArgs.push_back(youngPtr);     // R15
+
     auto addrOf =
         LLVM::AddressOfOp::create(rewriter, loc, ptrType, targetFunc.getName());
     callArgs.push_back(addrOf); // RAX
 
+    // TODO: use 0 value for unimplemented R12 register for now
+    auto zeroConst = LLVM::ConstantOp::create(rewriter, loc, i64Type, 0ULL);
     callArgs.push_back(zeroConst); // R12
 
     callArgs.append(args.begin(), args.end()); // C args

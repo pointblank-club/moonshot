@@ -37,3 +37,7 @@ __asm__(".globl caml_c_call\n"
         "    popq %rbp\n"
         "    retq\n");
 #endif
+
+/* Mock domain state and thread-local caml_state pointer for tests */
+static caml_domain_state mock_domain_state;
+__thread caml_domain_state* caml_state = &mock_domain_state;
