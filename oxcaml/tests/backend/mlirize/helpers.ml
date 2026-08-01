@@ -69,7 +69,7 @@ let clean_llvm content =
   in
   String.concat "\n" filtered
 
-let test_compile_impl ~cleanup ~name ~code =
+let test_compile_impl ~cleanup ~stdlib ~name ~code =
   let ocamlopt = find_ocamlopt () in
   let ocamllib = find_ocamllib () in
   let prefix = name in
@@ -80,10 +80,17 @@ let test_compile_impl ~cleanup ~name ~code =
   close_out oc;
   (* Run compiler *)
   let cmd =
-    Printf.sprintf
-      "env OCAML_COLOR=never OXCAML_TEST=1 %s -nostdlib -nopervasives \
-       -mlir-backend -ccopt -I%s -c %s.ml helpers.c > %s.stdout 2>&1"
-      ocamlopt ocamllib prefix prefix
+    if stdlib
+    then
+      Printf.sprintf
+        "env OCAML_COLOR=never OXCAML_TEST=1 %s -I %s -mlir-backend -c %s.ml > \
+         %s.stdout 2>&1"
+        ocamlopt ocamllib prefix prefix
+    else
+      Printf.sprintf
+        "env OCAML_COLOR=never OXCAML_TEST=1 %s -nostdlib -nopervasives \
+         -mlir-backend -ccopt -I%s -c %s.ml helpers.c > %s.stdout 2>&1"
+        ocamlopt ocamllib prefix prefix
   in
   let exit_status = Sys.command cmd in
   (* Print compiler stdout *)
@@ -107,10 +114,14 @@ let test_compile_impl ~cleanup ~name ~code =
   if cleanup then clean_temp_files prefix;
   { exit_status; stdout; run_stdout = ""; mlir; std_mlir; llvm }
 
-let test_compile ~name ~code = test_compile_impl ~cleanup:true ~name ~code
+let test_compile ~name ~code =
+  test_compile_impl ~cleanup:true ~stdlib:false ~name ~code
+
+let test_compile_stdlib ~name ~code =
+  test_compile_impl ~cleanup:true ~stdlib:true ~name ~code
 
 let test_compile_and_run ~name ~code =
-  let t = test_compile_impl ~cleanup:false ~name ~code in
+  let t = test_compile_impl ~cleanup:false ~stdlib:false ~name ~code in
   let prefix = name in
   let main_c = prefix ^ "_main.c" in
   let entry_sym = "caml" ^ String.capitalize_ascii prefix ^ "__entry" in

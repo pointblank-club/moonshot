@@ -81,6 +81,17 @@ def ExternCallOp : OCaml_Op<"extern_call"> {
       "$callee `(` $args `)` attr-dict `:` functional-type($args, results)";
 }
 
+def CallOp : OCaml_Op<"call"> {
+  let summary = "A call to an OCaml function";
+  let arguments = (ins OptionalAttr<StrAttr>:$module_name,
+                       StrAttr:$function_name,
+                       StrAttr:$mangled_name,
+                       Variadic<AnyType>:$args);
+  let results = (outs AnyType:$result);
+  let assemblyFormat =
+      "(`[` $module_name^ `]`)? $function_name `(` $mangled_name `)` `(` $args `)` attr-dict `:` functional-type($args, results)";
+}
+
 def BinOp : OCaml_Op<"binop"> {
   let summary = "An OCaml binary operation";
   let arguments = (ins StrAttr:$op_name, AnyType:$lhs, AnyType:$rhs);

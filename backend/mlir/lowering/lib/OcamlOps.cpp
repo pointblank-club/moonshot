@@ -240,6 +240,18 @@ struct ExternCallOpLowering : public OpConversionPattern<ocaml::ExternCallOp> {
   }
 };
 
+struct CallOpLowering : public OpConversionPattern<ocaml::CallOp> {
+  CallOpLowering(const TypeConverter &typeConverter, MLIRContext *context)
+      : OpConversionPattern<ocaml::CallOp>(typeConverter, context) {}
+
+  LogicalResult
+  matchAndRewrite(ocaml::CallOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    op->emitError("calling " + op.getMangledName().str() + " is unimplemented");
+    return failure();
+  }
+};
+
 struct ExternOpLowering : public OpConversionPattern<ocaml::ExternOp> {
   using OpConversionPattern<ocaml::ExternOp>::OpConversionPattern;
 
@@ -608,6 +620,7 @@ void ocaml::populateOcamlOpsPatterns(
     MLIRContext *context, std::shared_ptr<ocaml::LoweringState> state) {
   patterns.add<EntryOpLowering>(context);
   patterns.add<ExternCallOpLowering>(typeConverter, context);
+  patterns.add<CallOpLowering>(typeConverter, context);
   patterns.add<ExternOpLowering>(context);
   patterns.add<ModuleOpLowering>(context);
   patterns.add<ConstantOpLowering>(typeConverter, context, state);
