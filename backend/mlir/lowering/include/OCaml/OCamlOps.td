@@ -44,7 +44,7 @@ def ExternOp : OCaml_Op<"extern", [
 def CmpOp : OCaml_Op<"cmp", [AllTypesMatch<["lhs", "rhs"]>]> {
   // predicate is "lt", "gt", "eq" or "ne"
   let summary = "Compare two tagged OCaml ints, yielding an OCaml bool";
-  let arguments = (ins StrAttr:$predicate, AnyType:$lhs, AnyType:$rhs);
+  let arguments = (ins StrAttr:$predicate, Ocaml_Type:$lhs, Ocaml_Type:$rhs);
   let results = (outs BoolType:$result);
   let assemblyFormat =
       "$predicate $lhs `,` $rhs attr-dict `:` "
@@ -75,8 +75,8 @@ def NotOp : OCaml_Op<"not", [AllTypesMatch<["value", "result"]>]> {
 def ExternCallOp : OCaml_Op<"extern_call"> {
   let summary = "A call to an OCaml external";
   let arguments = (ins SymbolRefAttr:$callee,
-                       Variadic<AnyType>:$args);
-  let results = (outs AnyType:$result);
+                       Variadic<Ocaml_Type>:$args);
+  let results = (outs Ocaml_Type:$result);
   let assemblyFormat =
       "$callee `(` $args `)` attr-dict `:` functional-type($args, results)";
 }
@@ -94,8 +94,8 @@ def CallOp : OCaml_Op<"call"> {
 
 def BinOp : OCaml_Op<"binop"> {
   let summary = "An OCaml binary operation";
-  let arguments = (ins StrAttr:$op_name, AnyType:$lhs, AnyType:$rhs);
-  let results = (outs AnyType:$result);
+  let arguments = (ins StrAttr:$op_name, Ocaml_Type:$lhs, Ocaml_Type:$rhs);
+  let results = (outs Ocaml_Type:$result);
   let assemblyFormat =
       "$op_name $lhs `,` $rhs attr-dict `:` "
       "type($lhs) `,` type($rhs) `->` type($result)";
@@ -104,7 +104,7 @@ def BinOp : OCaml_Op<"binop"> {
 def ConstantOp : OCaml_Op<"constant", [ConstantLike, Pure]> {
   let summary = "An OCaml constant definition";
   let arguments = (ins AnyAttr:$value);
-  let results = (outs AnyType:$result);
+  let results = (outs Ocaml_Type:$result);
   let hasCustomAssemblyFormat = 1;
   let hasFolder = 1;
 }

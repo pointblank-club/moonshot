@@ -61,11 +61,6 @@ def UnboxedTypeInterface : TypeInterface<"UnboxedTypeInterface"> {
       }]>];
 }
 
-class OCaml_Type<string name, string typeMnemonic, list<Trait> traits = []>
-    : TypeDef<OCaml_Dialect, name, traits> {
-  let mnemonic = typeMnemonic;
-}
-
 class BoxedType<string name, string typeMnemonic, int typeTag, list<Trait> traits = []>
     : TypeDef<OCaml_Dialect, name, !listconcat(traits, [
         DeclareTypeInterfaceMethods<BoxedTypeInterface, ["constLowering"]>
@@ -88,6 +83,8 @@ class UnboxedType<string name, string typeMnemonic, list<Trait> traits = []>
     }
   }];
 }
+
+def Ocaml_Type : Type<CPred<"::llvm::isa<::ocaml::BoxedTypeInterface, ::ocaml::UnboxedTypeInterface>($_self)">, "OCaml type">;
 
 def StringType : BoxedType<"String", "string", 252> {
   let summary = "OCaml string type";
