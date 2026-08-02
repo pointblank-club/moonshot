@@ -298,11 +298,10 @@ struct FunctionOpLowering : public OpConversionPattern<ocaml::FunctionOp> {
 
     Location loc = op.getLoc();
     rewriter.setInsertionPoint(parent_module);
-    auto llvmFuncType = LLVM::LLVMFunctionType::get(resultType, argTypes,
-                                                    false);
+    auto llvmFuncType =
+        LLVM::LLVMFunctionType::get(resultType, argTypes, false);
     auto func = LLVM::LLVMFuncOp::create(rewriter, loc, op.getMangledName(),
-                                         llvmFuncType,
-                                         LLVM::Linkage::External);
+                                         llvmFuncType, LLVM::Linkage::External);
 
     Region &body = op.getBody();
     TypeConverter::SignatureConversion signature(funcType.getNumInputs());
