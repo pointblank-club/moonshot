@@ -247,8 +247,85 @@ struct CallOpLowering : public OpConversionPattern<ocaml::CallOp> {
   LogicalResult
   matchAndRewrite(ocaml::CallOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    op->emitError("calling " + op.getMangledName().str() + " is unimplemented");
-    return failure();
+    if (op.getModuleName()) {
+      op->emitError("calling " + op.getMangledName().str() +
+                    " is unimplemented");
+      return failure();
+    }
+
+    Type resultType = getTypeConverter()->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(op, "unsupported call result type");
+    }
+
+    // The callee is defined by an ocaml.function in this module, so refer to
+    // it by symbol rather than emitting a clashing declaration.
+    rewriter.replaceOpWithNewOp<LLVM::CallOp>(
+        op, TypeRange{resultType},
+        SymbolRefAttr::get(rewriter.getContext(), op.getMangledName()),
+        adaptor.getArgs());
+    return success();
+  }
+};
+
+struct FunctionOpLowering : public OpConversionPattern<ocaml::FunctionOp> {
+  FunctionOpLowering(const TypeConverter &typeConverter, MLIRContext *context)
+      : OpConversionPattern<ocaml::FunctionOp>(typeConverter, context) {}
+
+  LogicalResult
+  matchAndRewrite(ocaml::FunctionOp op, OpAdaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto parent_module = op->getParentOfType<ocaml::ModuleOp>();
+    if (!parent_module) {
+      return rewriter.notifyMatchFailure(op,
+                                         "function has no ocaml.module parent");
+    }
+
+    FunctionType funcType = op.getFunctionType();
+    SmallVector<Type> argTypes;
+    argTypes.reserve(funcType.getNumInputs());
+    for (Type input : funcType.getInputs()) {
+      Type converted = getTypeConverter()->convertType(input);
+      if (!converted) {
+        return rewriter.notifyMatchFailure(op, "unsupported parameter type");
+      }
+      argTypes.push_back(converted);
+    }
+    Type resultType = getTypeConverter()->convertType(funcType.getResult(0));
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(op, "unsupported result type");
+    }
+
+    Location loc = op.getLoc();
+    rewriter.setInsertionPoint(parent_module);
+    auto llvmFuncType = LLVM::LLVMFunctionType::get(resultType, argTypes,
+                                                    false);
+    auto func = LLVM::LLVMFuncOp::create(rewriter, loc, op.getMangledName(),
+                                         llvmFuncType,
+                                         LLVM::Linkage::External);
+
+    Region &body = op.getBody();
+    TypeConverter::SignatureConversion signature(funcType.getNumInputs());
+    for (auto [index, type] : llvm::enumerate(argTypes)) {
+      signature.addInputs(index, type);
+    }
+    rewriter.applySignatureConversion(&body.front(), signature,
+                                      getTypeConverter());
+    rewriter.inlineRegionBefore(body, func.getBody(), func.end());
+
+    rewriter.eraseOp(op);
+    return success();
+  }
+};
+
+struct ReturnOpLowering : public OpConversionPattern<ocaml::ReturnOp> {
+  using OpConversionPattern<ocaml::ReturnOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(ocaml::ReturnOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<LLVM::ReturnOp>(op, adaptor.getValue());
+    return success();
   }
 };
 
@@ -621,6 +698,8 @@ void ocaml::populateOcamlOpsPatterns(
   patterns.add<EntryOpLowering>(context);
   patterns.add<ExternCallOpLowering>(typeConverter, context);
   patterns.add<CallOpLowering>(typeConverter, context);
+  patterns.add<FunctionOpLowering>(typeConverter, context);
+  patterns.add<ReturnOpLowering>(typeConverter, context);
   patterns.add<ExternOpLowering>(context);
   patterns.add<ModuleOpLowering>(context);
   patterns.add<ConstantOpLowering>(typeConverter, context, state);

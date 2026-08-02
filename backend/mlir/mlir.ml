@@ -320,6 +320,30 @@ let create_call builder loc block module_name_opt function_name mangled_name
   append block op;
   Operation.get_result op 0
 
+(* The body block carries the parameters as block arguments; the caller fills it
+   in and terminates it with ocaml.return. *)
+let create_function builder loc module_block name mangled_name param_types
+    result_type =
+  let ctx = builder.Builders.OpBuilder.ctx in
+  let state = Operation.State.get "ocaml.function" loc in
+  Operation.State.add_attributes state
+    [ named_string_attr ctx "sym_name" name;
+      named_string_attr ctx "mangled_name" mangled_name;
+      named_type_attr ctx "function_type"
+        (Builders.OpBuilder.get_function_type builder param_types [result_type])
+    ];
+  let region = Operation.Region.create () in
+  let block = Operation.Block.create_with_args ~arg_types:param_types ~loc in
+  Operation.Region.append_owned_block region block;
+  Operation.State.add_owned_regions state [region];
+  append module_block (Operation.create state);
+  block
+
+let create_return loc block value =
+  let state = Operation.State.get "ocaml.return" loc in
+  Operation.State.add_operands state [value];
+  append block (Operation.create state)
+
 let rec compile_expr env builder module_block block created_externs
     (expr : Typedtree.expression) =
   let loc = file_line_col_loc builder expr.exp_loc.loc_start in
@@ -502,6 +526,52 @@ let rec compile_expr env builder module_block block created_externs
     | _ -> None)
   | _ -> Ocaml_location.raise_errorf ~loc:expr.exp_loc "unsupported expression"
 
+(* [let f x y = body], with plain unlabelled parameters. Anything richer
+   (labels, optional defaults, [function] cases) is left unsupported. *)
+let simple_function_binding (binding : Typedtree.value_binding) =
+  let simple_param (param : Typedtree.function_param) =
+    match param.fp_arg_label, param.fp_kind with
+    | Typedtree.Nolabel, Typedtree.Tparam_pat pat -> Some (param.fp_param, pat)
+    | _ -> None
+  in
+  match binding.vb_pat.pat_desc, binding.vb_expr.exp_desc with
+  | Tpat_var { id; _ }, Texp_function { params; body = Tfunction_body body; _ }
+    ->
+    let simple = List.filter_map simple_param params in
+    if params <> [] && List.compare_lengths simple params = 0
+    then Some (id, simple, body)
+    else None
+  | _ -> None
+
+let compile_function builder module_block created_externs id params
+    (body : Typedtree.expression) =
+  let ctx = builder.Builders.OpBuilder.ctx in
+  let loc = file_line_col_loc builder body.exp_loc.loc_start in
+  let param_types =
+    List.map
+      (fun (_, (pat : Typedtree.pattern)) ->
+        map_ocaml_type_to_mlir ctx pat.pat_type)
+      params
+  in
+  let result_type = map_ocaml_type_to_mlir ctx body.exp_type in
+  let mangled_name =
+    Symbol.for_local_ident id |> Symbol.linkage_name |> Linkage_name.to_string
+  in
+  let block =
+    create_function builder loc module_block (Ident.name id) mangled_name
+      param_types result_type
+  in
+  let env =
+    List.mapi
+      (fun i (param_id, _) ->
+        Ident.name param_id, Operation.Block.get_argument block i)
+      params
+  in
+  match compile_expr env builder module_block block created_externs body with
+  | Some value -> create_return loc block value
+  | None ->
+    Ocaml_location.raise_errorf ~loc:body.exp_loc "unsupported function body"
+
 let compile_structure builder module_block entry_block created_externs
     (impl : Typedtree.implementation) =
   let global_env = ref [] in
@@ -517,15 +587,21 @@ let compile_structure builder module_block entry_block created_externs
         let new_bindings =
           List.filter_map
             (fun (binding : Typedtree.value_binding) ->
-              match
-                compile_expr !global_env builder module_block entry_block
-                  created_externs binding.vb_expr
-              with
-              | Some val_obj -> (
-                match binding.vb_pat.pat_desc with
-                | Tpat_var { id; _ } -> Some (Ident.name id, val_obj)
-                | _ -> None)
-              | None -> None)
+              match simple_function_binding binding with
+              | Some (id, params, body) ->
+                compile_function builder module_block created_externs id params
+                  body;
+                None
+              | None -> (
+                match
+                  compile_expr !global_env builder module_block entry_block
+                    created_externs binding.vb_expr
+                with
+                | Some val_obj -> (
+                  match binding.vb_pat.pat_desc with
+                  | Tpat_var { id; _ } -> Some (Ident.name id, val_obj)
+                  | _ -> None)
+                | None -> None))
             bindings
         in
         global_env := new_bindings @ !global_env

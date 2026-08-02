@@ -31,6 +31,26 @@ def EntryOp : OCaml_Op<"entry", [
   let assemblyFormat = "attr-dict-with-keyword $body";
 }
 
+def FunctionOp : OCaml_Op<"function", [
+    Symbol,
+    NoTerminator
+]> {
+  let summary = "An OCaml function definition";
+  let arguments = (ins SymbolNameAttr:$sym_name,
+                       StrAttr:$mangled_name,
+                       TypeAttrOf<FunctionType>:$function_type);
+  let regions = (region SizedRegion<1>:$body);
+  let assemblyFormat =
+      "$sym_name `(` $mangled_name `)` `:` $function_type "
+      "attr-dict-with-keyword $body";
+}
+
+def ReturnOp : OCaml_Op<"return"> {
+  let summary = "Returns a value from an OCaml function";
+  let arguments = (ins Ocaml_Type:$value);
+  let assemblyFormat = "$value attr-dict `:` type($value)";
+}
+
 def ExternOp : OCaml_Op<"extern", [
     Symbol
 ]> {
