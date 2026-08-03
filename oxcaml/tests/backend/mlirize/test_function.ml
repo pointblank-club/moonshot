@@ -28,15 +28,15 @@ let%expect_test "function definition" =
   [%expect
     {|
     module {
+      llvm.func @camlFunction_def__entry() -> i64 {
+        %0 = llvm.mlir.constant(1 : i64) : i64
+        llvm.return %0 : i64
+      }
       llvm.func @camlFunction_def__add_5(%arg0: i64, %arg1: i64) -> i64 {
         %0 = llvm.add %arg0, %arg1 : i64
         %1 = llvm.mlir.constant(1 : i64) : i64
         %2 = llvm.sub %0, %1 : i64
         llvm.return %2 : i64
-      }
-      llvm.func @camlFunction_def__entry() -> i64 {
-        %0 = llvm.mlir.constant(1 : i64) : i64
-        llvm.return %0 : i64
       }
       llvm.mlir.global external @camlFunction_def__gc_roots(0 : i64) {addr_space = 0 : i32} : i64
       llvm.mlir.global external @camlFunction_def__data_begin(0 : i64) {addr_space = 0 : i32} : i64
@@ -57,14 +57,14 @@ let%expect_test "function definition" =
     @camlFunction_def__code_begin = global i64 0
     @camlFunction_def__code_end = global i64 0
 
+    define i64 @camlFunction_def__entry() {
+      ret i64 1
+    }
+
     define i64 @camlFunction_def__add_5(i64 %0, i64 %1) {
       %3 = add i64 %0, %1
       %4 = sub i64 %3, 1
       ret i64 %4
-    }
-
-    define i64 @camlFunction_def__entry() {
-      ret i64 1
     }
 
     !llvm.module.flags = !{!0}
@@ -117,15 +117,15 @@ let%expect_test "function call" =
     @camlFunction_call__code_begin = global i64 0
     @camlFunction_call__code_end = global i64 0
 
+    define i64 @camlFunction_call__entry() {
+      %1 = call i64 @camlFunction_call__add_5(i64 3, i64 5)
+      ret i64 1
+    }
+
     define i64 @camlFunction_call__add_5(i64 %0, i64 %1) {
       %3 = add i64 %0, %1
       %4 = sub i64 %3, 1
       ret i64 %4
-    }
-
-    define i64 @camlFunction_call__entry() {
-      %1 = call i64 @camlFunction_call__add_5(i64 3, i64 5)
-      ret i64 1
     }
 
     !llvm.module.flags = !{!0}
@@ -209,15 +209,15 @@ let%expect_test "function single param" =
     @camlFunction_single__code_begin = global i64 0
     @camlFunction_single__code_end = global i64 0
 
+    define i64 @camlFunction_single__entry() {
+      %1 = call i64 @camlFunction_single__is_neg_5(i64 -9)
+      ret i64 1
+    }
+
     define i64 @camlFunction_single__is_neg_5(i64 %0) {
       %2 = icmp slt i64 %0, 1
       %3 = select i1 %2, i64 3, i64 1
       ret i64 %3
-    }
-
-    define i64 @camlFunction_single__entry() {
-      %1 = call i64 @camlFunction_single__is_neg_5(i64 -9)
-      ret i64 1
     }
 
     !llvm.module.flags = !{!0}

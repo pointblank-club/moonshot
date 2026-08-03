@@ -13,19 +13,6 @@ using namespace mlir;
 
 namespace {
 
-/// Finds the target symbol name for an external OCaml declaration.
-std::optional<std::string> findExternTarget(ocaml::ModuleOp module,
-                                            StringRef name) {
-  for (Operation &op : module.getBody().front()) {
-    if (auto externOp = dyn_cast<ocaml::ExternOp>(op)) {
-      if (externOp.getSymName() == name) {
-        return externOp.getTarget().str();
-      }
-    }
-  }
-  return std::nullopt;
-}
-
 /// Assures the presence of an LLVM function declaration in the parent module.
 LLVM::LLVMFuncOp ensureFunction(OpBuilder &builder, Location loc,
                                 StringRef name, LLVM::LLVMFunctionType type) {
@@ -51,22 +38,24 @@ Value getValue(ConversionPatternRewriter &rewriter, Location loc, Value val) {
 struct EntryOpLowering : public OpConversionPattern<ocaml::EntryOp> {
   using OpConversionPattern<ocaml::EntryOp>::OpConversionPattern;
 
+  EntryOpLowering(const TypeConverter &typeConverter, MLIRContext *context,
+                  std::shared_ptr<ocaml::LoweringState> state)
+      : OpConversionPattern<ocaml::EntryOp>(typeConverter, context),
+        state(std::move(state)) {}
+
   LogicalResult
   matchAndRewrite(ocaml::EntryOp op, OpAdaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    auto parent_module = op->getParentOfType<ocaml::ModuleOp>();
-    if (!parent_module) {
-      return rewriter.notifyMatchFailure(op,
-                                         "entry has no ocaml.module parent");
-    }
-
-    std::string sym_name_str = "";
-    if (auto symName = parent_module.getSymName()) {
-      sym_name_str = symName->str();
+    std::string sym_name_str = state->moduleName;
+    if (auto parent_module = op->getParentOfType<ocaml::ModuleOp>()) {
+      if (auto symName = parent_module.getSymName()) {
+        sym_name_str = symName->str();
+      }
+      rewriter.setInsertionPoint(parent_module);
+    } else {
+      rewriter.setInsertionPoint(op);
     }
     std::string entry_name = "caml" + sym_name_str + "__entry";
-
-    rewriter.setInsertionPoint(parent_module);
 
     Location loc = op.getLoc();
     auto i64Type = rewriter.getI64Type();
@@ -84,58 +73,49 @@ struct EntryOpLowering : public OpConversionPattern<ocaml::EntryOp> {
     rewriter.eraseOp(op);
     return success();
   }
+
+private:
+  std::shared_ptr<ocaml::LoweringState> state;
 };
 
 struct ExternCallOpLowering : public OpConversionPattern<ocaml::ExternCallOp> {
   using OpConversionPattern<ocaml::ExternCallOp>::OpConversionPattern;
 
-  // TODO: extern_call should be calling `caml_c_call`, by passing the target
-  // pointer to %rax, but for now we just lower it to a direct call.
-  ExternCallOpLowering(const TypeConverter &typeConverter, MLIRContext *context)
-      : OpConversionPattern<ocaml::ExternCallOp>(typeConverter, context) {}
+  ExternCallOpLowering(const TypeConverter &typeConverter, MLIRContext *context,
+                       std::shared_ptr<ocaml::LoweringState> state)
+      : OpConversionPattern<ocaml::ExternCallOp>(typeConverter, context),
+        state(std::move(state)) {}
 
   LogicalResult
   matchAndRewrite(ocaml::ExternCallOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    auto parent_module = op->getParentOfType<ocaml::ModuleOp>();
-    if (!parent_module) {
-      return rewriter.notifyMatchFailure(op, "call has no ocaml.module parent");
-    }
-
     StringRef callee = op.getCallee().getRootReference();
-    std::optional<std::string> target = findExternTarget(parent_module, callee);
-    if (!target) {
+    auto targetIt = state->externTargets.find(callee);
+    if (targetIt == state->externTargets.end()) {
       return rewriter.notifyMatchFailure(op, "extern target not found");
     }
+    std::string target = targetIt->second;
 
     SmallVector<Value> args(adaptor.getArgs().begin(), adaptor.getArgs().end());
 
     auto i64Type = rewriter.getI64Type();
-    for (Operation &child : parent_module.getBody().front()) {
-      if (auto externOp = dyn_cast<ocaml::ExternOp>(child)) {
-        if (externOp.getSymName() == callee) {
-          if (auto funcTypeAttr =
-                  child.getAttrOfType<TypeAttr>("function_type")) {
-            Type t = funcTypeAttr.getValue();
-            if (mlir::isa<FunctionType>(t)) {
-              auto funcType = mlir::cast<FunctionType>(t);
-              size_t n = std::min<size_t>(args.size(), funcType.getNumInputs());
-              OpBuilder::InsertionGuard argGuard(rewriter);
-              rewriter.setInsertionPoint(op);
-              for (size_t i = 0; i < n; ++i) {
-                Type expected = funcType.getInput(i);
-                if (expected.isInteger(64)) {
-                  auto oneConst = LLVM::ConstantOp::create(
-                      rewriter, op.getLoc(), i64Type, 1ULL);
-                  auto untag =
-                      LLVM::AShrOp::create(rewriter, op.getLoc(), i64Type,
-                                           args[i], oneConst.getResult());
-                  args[i] = untag.getResult();
-                }
-              }
-            }
+    auto typeIt = state->externTypes.find(callee);
+    if (typeIt != state->externTypes.end()) {
+      Type t = typeIt->second.getValue();
+      if (mlir::isa<FunctionType>(t)) {
+        auto funcType = mlir::cast<FunctionType>(t);
+        size_t n = std::min<size_t>(args.size(), funcType.getNumInputs());
+        OpBuilder::InsertionGuard argGuard(rewriter);
+        rewriter.setInsertionPoint(op);
+        for (size_t i = 0; i < n; ++i) {
+          Type expected = funcType.getInput(i);
+          if (expected.isInteger(64)) {
+            auto oneConst =
+                LLVM::ConstantOp::create(rewriter, op.getLoc(), i64Type, 1ULL);
+            auto untag = LLVM::AShrOp::create(rewriter, op.getLoc(), i64Type,
+                                              args[i], oneConst.getResult());
+            args[i] = untag.getResult();
           }
-          break;
         }
       }
     }
@@ -148,9 +128,17 @@ struct ExternCallOpLowering : public OpConversionPattern<ocaml::ExternCallOp> {
     Type resultType = getTypeConverter()->convertType(op.getType());
     auto targetType = LLVM::LLVMFunctionType::get(resultType, argTypes, false);
     OpBuilder::InsertionGuard guard(rewriter);
-    rewriter.setInsertionPoint(parent_module);
-    auto targetFunc =
-        ensureFunction(rewriter, op.getLoc(), *target, targetType);
+    if (auto parent_module = op->getParentOfType<ocaml::ModuleOp>()) {
+      rewriter.setInsertionPoint(parent_module);
+    } else {
+      auto stdModule = op->getParentOfType<ModuleOp>();
+      if (stdModule) {
+        rewriter.setInsertionPointToStart(stdModule.getBody());
+      } else {
+        rewriter.setInsertionPoint(op);
+      }
+    }
+    auto targetFunc = ensureFunction(rewriter, op.getLoc(), target, targetType);
 
     rewriter.setInsertionPoint(op);
     Location loc = op.getLoc();
@@ -166,7 +154,13 @@ struct ExternCallOpLowering : public OpConversionPattern<ocaml::ExternCallOp> {
     }
     if (!camlStateGlobal) {
       OpBuilder::InsertionGuard guard(rewriter);
-      rewriter.setInsertionPoint(parent_module);
+      if (auto parent_module = op->getParentOfType<ocaml::ModuleOp>()) {
+        rewriter.setInsertionPoint(parent_module);
+      } else if (stdModule) {
+        rewriter.setInsertionPointToStart(stdModule.getBody());
+      } else {
+        rewriter.setInsertionPoint(op);
+      }
       camlStateGlobal = LLVM::GlobalOp::create(
           rewriter, loc, ptrType, /*isConstant=*/false, LLVM::Linkage::External,
           "caml_state", /*value=*/nullptr);
@@ -206,7 +200,13 @@ struct ExternCallOpLowering : public OpConversionPattern<ocaml::ExternCallOp> {
 
     auto cCallDeclType = LLVM::LLVMFunctionType::get(
         i64Type, {i64Type, i64Type, ptrType, i64Type}, false);
-    rewriter.setInsertionPoint(parent_module);
+    if (auto parent_module = op->getParentOfType<ocaml::ModuleOp>()) {
+      rewriter.setInsertionPoint(parent_module);
+    } else if (stdModule) {
+      rewriter.setInsertionPointToStart(stdModule.getBody());
+    } else {
+      rewriter.setInsertionPoint(op);
+    }
     auto cCallFunc =
         ensureFunction(rewriter, loc, "caml_c_call", cCallDeclType);
 
@@ -238,10 +238,14 @@ struct ExternCallOpLowering : public OpConversionPattern<ocaml::ExternCallOp> {
     rewriter.replaceOp(op, result);
     return success();
   }
+
+private:
+  std::shared_ptr<ocaml::LoweringState> state;
 };
 
 struct CallOpLowering : public OpConversionPattern<ocaml::CallOp> {
-  CallOpLowering(const TypeConverter &typeConverter, MLIRContext *context)
+  CallOpLowering(const TypeConverter &typeConverter, MLIRContext *context,
+                 std::shared_ptr<ocaml::LoweringState> = nullptr)
       : OpConversionPattern<ocaml::CallOp>(typeConverter, context) {}
 
   LogicalResult
@@ -269,16 +273,18 @@ struct CallOpLowering : public OpConversionPattern<ocaml::CallOp> {
 };
 
 struct FunctionOpLowering : public OpConversionPattern<ocaml::FunctionOp> {
-  FunctionOpLowering(const TypeConverter &typeConverter, MLIRContext *context)
+  FunctionOpLowering(const TypeConverter &typeConverter, MLIRContext *context,
+                     std::shared_ptr<ocaml::LoweringState> = nullptr)
       : OpConversionPattern<ocaml::FunctionOp>(typeConverter, context) {}
 
   LogicalResult
   matchAndRewrite(ocaml::FunctionOp op, OpAdaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    auto parent_module = op->getParentOfType<ocaml::ModuleOp>();
-    if (!parent_module) {
-      return rewriter.notifyMatchFailure(op,
-                                         "function has no ocaml.module parent");
+    Location loc = op.getLoc();
+    if (auto parent_module = op->getParentOfType<ocaml::ModuleOp>()) {
+      rewriter.setInsertionPoint(parent_module);
+    } else {
+      rewriter.setInsertionPoint(op);
     }
 
     FunctionType funcType = op.getFunctionType();
@@ -296,8 +302,6 @@ struct FunctionOpLowering : public OpConversionPattern<ocaml::FunctionOp> {
       return rewriter.notifyMatchFailure(op, "unsupported result type");
     }
 
-    Location loc = op.getLoc();
-    rewriter.setInsertionPoint(parent_module);
     auto llvmFuncType =
         LLVM::LLVMFunctionType::get(resultType, argTypes, false);
     auto func = LLVM::LLVMFuncOp::create(rewriter, loc, op.getMangledName(),
@@ -318,7 +322,9 @@ struct FunctionOpLowering : public OpConversionPattern<ocaml::FunctionOp> {
 };
 
 struct ReturnOpLowering : public OpConversionPattern<ocaml::ReturnOp> {
-  using OpConversionPattern<ocaml::ReturnOp>::OpConversionPattern;
+  ReturnOpLowering(const TypeConverter &typeConverter, MLIRContext *context,
+                   std::shared_ptr<ocaml::LoweringState> = nullptr)
+      : OpConversionPattern<ocaml::ReturnOp>(typeConverter, context) {}
 
   LogicalResult
   matchAndRewrite(ocaml::ReturnOp op, OpAdaptor adaptor,
@@ -329,7 +335,9 @@ struct ReturnOpLowering : public OpConversionPattern<ocaml::ReturnOp> {
 };
 
 struct ExternOpLowering : public OpConversionPattern<ocaml::ExternOp> {
-  using OpConversionPattern<ocaml::ExternOp>::OpConversionPattern;
+  ExternOpLowering(const TypeConverter &typeConverter, MLIRContext *context,
+                   std::shared_ptr<ocaml::LoweringState> = nullptr)
+      : OpConversionPattern<ocaml::ExternOp>(typeConverter, context) {}
 
   LogicalResult
   matchAndRewrite(ocaml::ExternOp op, OpAdaptor,
@@ -342,10 +350,15 @@ struct ExternOpLowering : public OpConversionPattern<ocaml::ExternOp> {
 struct ModuleOpLowering : public OpConversionPattern<ocaml::ModuleOp> {
   using OpConversionPattern<ocaml::ModuleOp>::OpConversionPattern;
 
+  ModuleOpLowering(const TypeConverter &typeConverter, MLIRContext *context,
+                   std::shared_ptr<ocaml::LoweringState> state)
+      : OpConversionPattern<ocaml::ModuleOp>(typeConverter, context),
+        state(std::move(state)) {}
+
   LogicalResult
   matchAndRewrite(ocaml::ModuleOp op, OpAdaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    std::string sym_name_str = "";
+    std::string sym_name_str = state->moduleName;
     if (auto symName = op.getSymName()) {
       sym_name_str = symName->str();
     }
@@ -357,7 +370,8 @@ struct ModuleOpLowering : public OpConversionPattern<ocaml::ModuleOp> {
     std::string code_begin_name = "caml" + sym_name_str + "__code_begin";
     std::string code_end_name = "caml" + sym_name_str + "__code_end";
 
-    rewriter.setInsertionPoint(op);
+    Block &moduleBlock = op.getBody().front();
+    rewriter.setInsertionPointToEnd(&moduleBlock);
 
     auto i64Type = rewriter.getI64Type();
     auto zeroAttr = rewriter.getI64IntegerAttr(0);
@@ -373,9 +387,13 @@ struct ModuleOpLowering : public OpConversionPattern<ocaml::ModuleOp> {
     LLVM::GlobalOp::create(rewriter, loc, i64Type, false,
                            LLVM::Linkage::External, code_end_name, zeroAttr);
 
+    rewriter.inlineBlockBefore(&moduleBlock, op);
     rewriter.eraseOp(op);
     return success();
   }
+
+private:
+  std::shared_ptr<ocaml::LoweringState> state;
 };
 
 struct ConstantOpLowering : public OpConversionPattern<ocaml::ConstantOp> {
@@ -401,14 +419,11 @@ struct ConstantOpLowering : public OpConversionPattern<ocaml::ConstantOp> {
     }
     if (auto boxedType =
             llvm::dyn_cast<ocaml::BoxedTypeInterface>(resultType)) {
-      auto parent_module = op->getParentOfType<ocaml::ModuleOp>();
-      if (!parent_module) {
-        return rewriter.notifyMatchFailure(
-            op, "boxed type has no ocaml.module parent");
-      }
-      StringRef symNameVal = "";
-      if (auto symName = parent_module.getSymName()) {
-        symNameVal = *symName;
+      StringRef symNameVal = state->moduleName;
+      if (auto parent_module = op->getParentOfType<ocaml::ModuleOp>()) {
+        if (auto symName = parent_module.getSymName()) {
+          symNameVal = *symName;
+        }
       }
       Value resultVal;
       if (failed(boxedType.constLowering(rewriter, op.getValue(), op.getLoc(),
@@ -457,14 +472,18 @@ struct BinOpLowering : public OpConversionPattern<ocaml::BinOp> {
         return failure();
       }
 
-      auto parent_module = op->template getParentOfType<ocaml::ModuleOp>();
-      if (!parent_module)
-        return failure();
       auto i64Type = rewriter.getI64Type();
       auto copyType = LLVM::LLVMFunctionType::get(i64Type, {f64Type}, false);
       if (!state->copyDoubleDeclared) {
         OpBuilder::InsertionGuard guard(rewriter);
-        rewriter.setInsertionPoint(parent_module);
+        if (auto parent_module =
+                op->template getParentOfType<ocaml::ModuleOp>()) {
+          rewriter.setInsertionPoint(parent_module);
+        } else if (auto stdModule = op->template getParentOfType<ModuleOp>()) {
+          rewriter.setInsertionPointToStart(stdModule.getBody());
+        } else {
+          rewriter.setInsertionPoint(op);
+        }
         LLVM::LLVMFuncOp::create(rewriter, loc, "caml_copy_double", copyType,
                                  LLVM::Linkage::External);
         state->copyDoubleDeclared = true;
@@ -582,7 +601,9 @@ private:
 };
 
 struct CmpOpLowering : public OpConversionPattern<ocaml::CmpOp> {
-  using OpConversionPattern<ocaml::CmpOp>::OpConversionPattern;
+  CmpOpLowering(const TypeConverter &typeConverter, MLIRContext *context,
+                std::shared_ptr<ocaml::LoweringState> = nullptr)
+      : OpConversionPattern<ocaml::CmpOp>(typeConverter, context) {}
 
   LogicalResult
   matchAndRewrite(ocaml::CmpOp op, OpAdaptor adaptor,
@@ -645,7 +666,9 @@ struct CmpOpLowering : public OpConversionPattern<ocaml::CmpOp> {
 };
 
 struct AndOpLowering : public OpConversionPattern<ocaml::AndOp> {
-  using OpConversionPattern<ocaml::AndOp>::OpConversionPattern;
+  AndOpLowering(const TypeConverter &typeConverter, MLIRContext *context,
+                std::shared_ptr<ocaml::LoweringState> = nullptr)
+      : OpConversionPattern<ocaml::AndOp>(typeConverter, context) {}
 
   LogicalResult
   matchAndRewrite(ocaml::AndOp op, OpAdaptor adaptor,
@@ -659,7 +682,9 @@ struct AndOpLowering : public OpConversionPattern<ocaml::AndOp> {
 };
 
 struct OrOpLowering : public OpConversionPattern<ocaml::OrOp> {
-  using OpConversionPattern<ocaml::OrOp>::OpConversionPattern;
+  OrOpLowering(const TypeConverter &typeConverter, MLIRContext *context,
+               std::shared_ptr<ocaml::LoweringState> = nullptr)
+      : OpConversionPattern<ocaml::OrOp>(typeConverter, context) {}
 
   LogicalResult
   matchAndRewrite(ocaml::OrOp op, OpAdaptor adaptor,
@@ -673,7 +698,9 @@ struct OrOpLowering : public OpConversionPattern<ocaml::OrOp> {
 };
 
 struct NotOpLowering : public OpConversionPattern<ocaml::NotOp> {
-  using OpConversionPattern<ocaml::NotOp>::OpConversionPattern;
+  NotOpLowering(const TypeConverter &typeConverter, MLIRContext *context,
+                std::shared_ptr<ocaml::LoweringState> = nullptr)
+      : OpConversionPattern<ocaml::NotOp>(typeConverter, context) {}
 
   LogicalResult
   matchAndRewrite(ocaml::NotOp op, OpAdaptor adaptor,
@@ -694,15 +721,9 @@ struct NotOpLowering : public OpConversionPattern<ocaml::NotOp> {
 void ocaml::populateOcamlOpsPatterns(
     RewritePatternSet &patterns, const TypeConverter &typeConverter,
     MLIRContext *context, std::shared_ptr<ocaml::LoweringState> state) {
-  patterns.add<EntryOpLowering>(context);
-  patterns.add<ExternCallOpLowering>(typeConverter, context);
-  patterns.add<CallOpLowering>(typeConverter, context);
-  patterns.add<FunctionOpLowering>(typeConverter, context);
-  patterns.add<ReturnOpLowering>(typeConverter, context);
-  patterns.add<ExternOpLowering>(context);
-  patterns.add<ModuleOpLowering>(context);
-  patterns.add<ConstantOpLowering>(typeConverter, context, state);
-  patterns.add<BinOpLowering>(typeConverter, context, state);
-  patterns.add<CmpOpLowering, AndOpLowering, OrOpLowering, NotOpLowering>(
-      typeConverter, context);
+  patterns.add<
+#define GET_OCAML_LOWERING_PATTERNS_LIST
+#include "OCaml/OCamlLowering.inc"
+#undef GET_OCAML_LOWERING_PATTERNS_LIST
+      >(typeConverter, context, state);
 }

@@ -20,22 +20,42 @@ LogicalResult BoxedTypeInterface::lowerBoxedConstant(
       "caml" + sym_name_str + "." + std::to_string(++stringIndex);
 
   Operation *parentOp = builder.getBlock()->getParentOp();
-  ocaml::ModuleOp parent_module = nullptr;
+  Operation *insertParent = nullptr;
   while (parentOp) {
-    if (auto mod = llvm::dyn_cast<ocaml::ModuleOp>(parentOp)) {
-      parent_module = mod;
-      break;
+    if (llvm::isa<ocaml::ModuleOp>(parentOp) ||
+        llvm::isa<mlir::ModuleOp>(parentOp)) {
+      insertParent = parentOp;
+      if (llvm::isa<ocaml::ModuleOp>(parentOp))
+        break;
     }
     parentOp = parentOp->getParentOp();
   }
-  if (!parent_module)
+  if (!insertParent)
     return failure();
 
   auto i8Type = builder.getI8Type();
   auto ptrType = LLVM::LLVMPointerType::get(builder.getContext());
   {
     OpBuilder::InsertionGuard guard(builder);
-    builder.setInsertionPoint(parent_module);
+    if (auto ocamlMod = llvm::dyn_cast<ocaml::ModuleOp>(insertParent)) {
+      builder.setInsertionPoint(ocamlMod);
+    } else if (auto stdMod = llvm::dyn_cast<mlir::ModuleOp>(insertParent)) {
+      LLVM::GlobalOp lastConstGlobal = nullptr;
+      for (Operation &op : stdMod.getBody()->getOperations()) {
+        if (auto global = llvm::dyn_cast<LLVM::GlobalOp>(op)) {
+          if (global.getSymName().starts_with("caml" + sym_name_str + ".")) {
+            lastConstGlobal = global;
+          }
+        }
+      }
+      if (lastConstGlobal) {
+        builder.setInsertionPointAfter(lastConstGlobal);
+      } else {
+        builder.setInsertionPointToStart(stdMod.getBody());
+      }
+    } else {
+      builder.setInsertionPoint(insertParent);
+    }
     auto arrayType = LLVM::LLVMArrayType::get(i8Type, globalValStr.size());
     LLVM::GlobalOp::create(builder, loc, arrayType, true,
                            LLVM::Linkage::External, globalName,
