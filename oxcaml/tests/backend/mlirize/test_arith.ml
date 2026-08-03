@@ -4,11 +4,11 @@ let%expect_test "arithmetic" =
   let t =
     test_compile ~name:"arith"
       ~code:
-        "\n\
-        \    external ( + ) : int -> int -> int = \"%addint\"\n\
-        \    external ( * ) : int -> int -> int = \"%mulint\"\n\
-        \    let res = 1 + 2 * 3\n\
-        \  "
+        {|
+    external ( + ) : int -> int -> int = "%addint"
+    external ( * ) : int -> int -> int = "%mulint"
+    let res = 1 + 2 * 3
+    |}
   in
   verify_mlir t;
   [%expect

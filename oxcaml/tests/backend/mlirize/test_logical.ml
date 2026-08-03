@@ -4,15 +4,15 @@ let%expect_test "logical operators" =
   let t =
     test_compile ~name:"logical"
       ~code:
-        "\n\
-        \    external ( < ) : int -> int -> bool = \"%lessthan\"\n\
-        \    external ( && ) : bool -> bool -> bool = \"%sequand\"\n\
-        \    external ( || ) : bool -> bool -> bool = \"%sequor\"\n\
-        \    external not : bool -> bool = \"%boolnot\"\n\
-        \    let conj = 3 < 5 && 2 < 1\n\
-        \    let disj = 1 < 2 || 5 < 4\n\
-        \    let neg = not (1 < 2)\n\
-        \  "
+        {|
+    external ( < ) : int -> int -> bool = "%lessthan"
+    external ( && ) : bool -> bool -> bool = "%sequand"
+    external ( || ) : bool -> bool -> bool = "%sequor"
+    external not : bool -> bool = "%boolnot"
+    let conj = 3 < 5 && 2 < 1
+    let disj = 1 < 2 || 5 < 4
+    let neg = not (1 < 2)
+    |}
   in
   verify_mlir t;
   [%expect

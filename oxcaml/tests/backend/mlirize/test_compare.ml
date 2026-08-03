@@ -4,20 +4,20 @@ let%expect_test "int comparison" =
   let t =
     test_compile ~name:"compare"
       ~code:
-        "\n\
-        \    external ( < ) : int -> int -> bool = \"%lessthan\"\n\
-        \    external ( > ) : int -> int -> bool = \"%greaterthan\"\n\
-        \    external ( <= ) : int -> int -> bool = \"%lessequal\"\n\
-        \    external ( >= ) : int -> int -> bool = \"%greaterequal\"\n\
-        \    external ( = ) : int -> int -> bool = \"%equal\"\n\
-        \    external ( <> ) : int -> int -> bool = \"%notequal\"\n\
-        \    let lt = 2 < 9\n\
-        \    let gt = 7 > 3\n\
-        \    let le = 2 <= 9\n\
-        \    let ge = 7 >= 3\n\
-        \    let eq = 4 = 4\n\
-        \    let ne = 4 <> 9\n\
-        \  "
+        {|
+    external ( < ) : int -> int -> bool = "%lessthan"
+    external ( > ) : int -> int -> bool = "%greaterthan"
+    external ( <= ) : int -> int -> bool = "%lessequal"
+    external ( >= ) : int -> int -> bool = "%greaterequal"
+    external ( = ) : int -> int -> bool = "%equal"
+    external ( <> ) : int -> int -> bool = "%notequal"
+    let lt = 2 < 9
+    let gt = 7 > 3
+    let le = 2 <= 9
+    let ge = 7 >= 3
+    let eq = 4 = 4
+    let ne = 4 <> 9
+    |}
   in
   verify_mlir t;
   [%expect

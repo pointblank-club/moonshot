@@ -6,11 +6,11 @@ let%expect_test "source locations" =
   let t =
     test_compile ~name:"locations"
       ~code:
-        "\n\
-        \    external ( + ) : int -> int -> int = \"%addint\"\n\
-        \    let a = 10\n\
-        \    let b = a + 20\n\
-        \  "
+        {|
+    external ( + ) : int -> int -> int = "%addint"
+    let a = 10
+    let b = a + 20
+    |}
   in
   verify_mlir t;
   [%expect
@@ -32,7 +32,11 @@ let%expect_test "source locations" =
 let%expect_test "distinct locations" =
   let t =
     test_compile ~name:"multiloc"
-      ~code:"\n    let x = 1\n    let y = 22\n    let z = \"s\"\n  "
+      ~code:{|
+    let x = 1
+    let y = 22
+    let z = "s"
+    |}
   in
   verify_mlir t;
   [%expect
@@ -55,11 +59,10 @@ let%expect_test "unsupported expression diagnostic" =
   let t =
     test_compile ~name:"unsupported"
       ~code:
-        "\n\
-        \    (* This is a long comment to force the formatter to keep the \
-         string multiline *)\n\
-        \    let x = (1, 2)\n\
-        \  "
+        {|
+    (* This is a long comment to force the formatter to keep the string multiline *)
+    let x = (1, 2)
+    |}
   in
   verify_build_stdout t;
   [%expect

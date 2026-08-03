@@ -2,7 +2,10 @@ open Helpers
 
 let%expect_test "float" =
   let t =
-    test_compile ~name:"float" ~code:"\n    let x = 1.5\n    let y = 2.0\n  "
+    test_compile ~name:"float" ~code:{|
+    let x = 1.5
+    let y = 2.0
+    |}
   in
   verify_mlir t;
   [%expect
@@ -67,11 +70,11 @@ let%expect_test "float_arith" =
   let t =
     test_compile ~name:"float_arith"
       ~code:
-        "\n\
-        \    external ( +. ) : float -> float -> float = \"%addfloat\"\n\
-        \    external ( *. ) : float -> float -> float = \"%mulfloat\"\n\
-        \    let res = 1.5 +. 2.0 *. 3.0\n\
-        \  "
+        {|
+    external ( +. ) : float -> float -> float = "%addfloat"
+    external ( *. ) : float -> float -> float = "%mulfloat"
+    let res = 1.5 +. 2.0 *. 3.0
+    |}
   in
   verify_mlir t;
   [%expect
@@ -167,12 +170,12 @@ let%expect_test "float_arith_run" =
   let t =
     test_compile_and_run ~name:"float_arith_run"
       ~code:
-        "\n\
-        \    external ( +. ) : float -> float -> float = \"%addfloat\"\n\
-        \    external ( *. ) : float -> float -> float = \"%mulfloat\"\n\
-        \    external print_float : float -> unit = \"print_float\"\n\
-        \    let () = print_float (1.5 +. 2.0 *. 3.0)\n\
-        \  "
+        {|
+    external ( +. ) : float -> float -> float = "%addfloat"
+    external ( *. ) : float -> float -> float = "%mulfloat"
+    external print_float : float -> unit = "print_float"
+    let () = print_float (1.5 +. 2.0 *. 3.0)
+    |}
   in
   verify_stdout t;
   [%expect {| 7.5 |}]
@@ -181,16 +184,16 @@ let%expect_test "float_cmp" =
   let t =
     test_compile ~name:"float_cmp"
       ~code:
-        "\n\
-        \    external ( < ) : float -> float -> bool = \"%lessthan\"\n\
-        \    external ( <= ) : float -> float -> bool = \"%lessequal\"\n\
-        \    external ( >= ) : float -> float -> bool = \"%greaterequal\"\n\
-        \    external ( = ) : float -> float -> bool = \"%equal\"\n\
-        \    let a = 1.5 < 2.0\n\
-        \    let c = 1.5 <= 2.0\n\
-        \    let d = 2.0 >= 1.5\n\
-        \    let b = 1.5 = 2.0\n\
-        \  "
+        {|
+    external ( < ) : float -> float -> bool = "%lessthan"
+    external ( <= ) : float -> float -> bool = "%lessequal"
+    external ( >= ) : float -> float -> bool = "%greaterequal"
+    external ( = ) : float -> float -> bool = "%equal"
+    let a = 1.5 < 2.0
+    let c = 1.5 <= 2.0
+    let d = 2.0 >= 1.5
+    let b = 1.5 = 2.0
+    |}
   in
   verify_mlir t;
   [%expect
@@ -335,12 +338,12 @@ let%expect_test "float_cmp_run" =
   let t =
     test_compile_and_run ~name:"float_cmp_run"
       ~code:
-        "\n\
-        \    external ( < ) : float -> float -> bool = \"%lessthan\"\n\
-        \    external print_int : bool -> unit = \"print_int\"\n\
-        \    let () = print_int (1.5 < 2.0)\n\
-        \    let () = print_int (2.0 < 1.5)\n\
-        \  "
+        {|
+    external ( < ) : float -> float -> bool = "%lessthan"
+    external print_int : bool -> unit = "print_int"
+    let () = print_int (1.5 < 2.0)
+    let () = print_int (2.0 < 1.5)
+    |}
   in
   verify_stdout t;
   [%expect {|
