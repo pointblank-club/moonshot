@@ -3,7 +3,10 @@ open Helpers
 let%expect_test "constants" =
   let t =
     test_compile ~name:"constants"
-      ~code:"\n    let x = 42\n    let s = \"hello\"\n  "
+      ~code:{|
+    let x = 42
+    let s = "hello"
+    |}
   in
   verify_mlir t;
   [%expect
@@ -62,7 +65,9 @@ let%expect_test "constants" =
     |}]
 
 let%expect_test "unit_constant" =
-  let t = test_compile ~name:"unit_constant" ~code:"\n    let u = ()\n  " in
+  let t = test_compile ~name:"unit_constant" ~code:{|
+    let u = ()
+    |} in
   verify_mlir t;
   [%expect
     {|

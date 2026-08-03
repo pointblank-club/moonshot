@@ -4,12 +4,12 @@ let%expect_test "extern call assignment" =
   let t =
     test_compile ~name:"extern_call_assign"
       ~code:
-        "\n\
-        \    external puts : string -> int = \"caml_puts\"\n\
-        \    external puts_int : int -> unit = \"caml_puts_int\"\n\
-        \    let a = puts \"Hello from C puts!\"\n\
-        \    let () = puts_int a\n\
-        \  "
+        {|
+    external puts : string -> int = "caml_puts"
+    external puts_int : int -> unit = "caml_puts_int"
+    let a = puts "Hello from C puts!"
+    let () = puts_int a
+    |}
   in
   verify_mlir t;
   [%expect
@@ -117,13 +117,13 @@ let%expect_test "extern call helpers" =
   let t =
     test_compile_and_run ~name:"extern_call_helpers"
       ~code:
-        "\n\
-        \    external ( + ) : int -> int -> int = \"%addint\"\n\
-        \    external print_int : int -> unit = \"print_int\"\n\
-        \    external print_str : string -> unit = \"print_str\"\n\
-        \    let () = print_str \"Hello, MLIR!\"\n\
-        \    let () = print_int (41 + 1)\n\
-        \  "
+        {|
+    external ( + ) : int -> int -> int = "%addint"
+    external print_int : int -> unit = "print_int"
+    external print_str : string -> unit = "print_str"
+    let () = print_str "Hello, MLIR!"
+    let () = print_int (41 + 1)
+    |}
   in
   verify_mlir t;
   [%expect

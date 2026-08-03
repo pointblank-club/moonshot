@@ -2,7 +2,8 @@ open Helpers
 
 let%expect_test "stdlib call" =
   let t =
-    test_compile_stdlib ~name:"stdlib_call" ~code:"let () = print_newline ()"
+    test_compile_stdlib ~name:"stdlib_call"
+      ~code:{| let () = print_newline () |}
   in
   Printf.printf "%s\n" t.mlir;
   [%expect
@@ -14,6 +15,6 @@ let%expect_test "stdlib call" =
       } loc(#loc)
     } loc(#loc)
     #loc = loc(unknown)
-    #loc1 = loc("stdlib_call.ml":1:24)
-    #loc2 = loc("stdlib_call.ml":1:10)
+    #loc1 = loc("stdlib_call.ml":1:25)
+    #loc2 = loc("stdlib_call.ml":1:11)
     |}]

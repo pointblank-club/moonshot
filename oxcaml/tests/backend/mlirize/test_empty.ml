@@ -1,7 +1,7 @@
 open Helpers
 
 let%expect_test "empty module" =
-  let t = test_compile ~name:"empty" ~code:"" in
+  let t = test_compile ~name:"empty" ~code:{||} in
   verify_mlir t;
   [%expect
     {|

@@ -4,10 +4,10 @@ let%expect_test "function definition" =
   let t =
     test_compile ~name:"function_def"
       ~code:
-        "\n\
-        \    external ( + ) : int -> int -> int = \"%addint\"\n\
-        \    let add x y = x + y\n\
-        \  "
+        {|
+    external ( + ) : int -> int -> int = "%addint"
+    let add x y = x + y
+    |}
   in
   verify_mlir t;
   [%expect
@@ -78,11 +78,11 @@ let%expect_test "function call" =
   let t =
     test_compile ~name:"function_call"
       ~code:
-        "\n\
-        \    external ( + ) : int -> int -> int = \"%addint\"\n\
-        \    let add x y = x + y\n\
-        \    let res = add 1 2\n\
-        \  "
+        {|
+    external ( + ) : int -> int -> int = "%addint"
+    let add x y = x + y
+    let res = add 1 2
+    |}
   in
   verify_mlir t;
   [%expect
@@ -141,10 +141,10 @@ let%expect_test "anonymous function binding" =
   let t =
     test_compile ~name:"function_anon"
       ~code:
-        "\n\
-        \    external ( + ) : int -> int -> int = \"%addint\"\n\
-        \    let increment = fun x -> x + 1\n\
-        \  "
+        {|
+    external ( + ) : int -> int -> int = "%addint"
+    let increment = fun x -> x + 1
+    |}
   in
   verify_mlir t;
   [%expect
@@ -170,11 +170,11 @@ let%expect_test "function single param" =
   let t =
     test_compile ~name:"function_single"
       ~code:
-        "\n\
-        \    external ( < ) : int -> int -> bool = \"%lessthan\"\n\
-        \    let is_neg x = x < 0\n\
-        \    let res = is_neg (-5)\n\
-        \  "
+        {|
+    external ( < ) : int -> int -> bool = "%lessthan"
+    let is_neg x = x < 0
+    let res = is_neg (-5)
+    |}
   in
   verify_mlir t;
   [%expect

@@ -4,20 +4,20 @@ let%expect_test "bitwise and shift" =
   let t =
     test_compile ~name:"bitwise"
       ~code:
-        "\n\
-        \    external ( land ) : int -> int -> int = \"%andint\"\n\
-        \    external ( lor ) : int -> int -> int = \"%orint\"\n\
-        \    external ( lxor ) : int -> int -> int = \"%xorint\"\n\
-        \    external ( lsl ) : int -> int -> int = \"%lslint\"\n\
-        \    external ( lsr ) : int -> int -> int = \"%lsrint\"\n\
-        \    external ( asr ) : int -> int -> int = \"%asrint\"\n\
-        \    let a = 12 land 10\n\
-        \    let b = 12 lor 10\n\
-        \    let c = 12 lxor 10\n\
-        \    let d = 1 lsl 4\n\
-        \    let e = 64 lsr 2\n\
-        \    let f = -64 asr 2\n\
-        \  "
+        {|
+    external ( land ) : int -> int -> int = "%andint"
+    external ( lor ) : int -> int -> int = "%orint"
+    external ( lxor ) : int -> int -> int = "%xorint"
+    external ( lsl ) : int -> int -> int = "%lslint"
+    external ( lsr ) : int -> int -> int = "%lsrint"
+    external ( asr ) : int -> int -> int = "%asrint"
+    let a = 12 land 10
+    let b = 12 lor 10
+    let c = 12 lxor 10
+    let d = 1 lsl 4
+    let e = 64 lsr 2
+    let f = -64 asr 2
+    |}
   in
   verify_mlir t;
   [%expect
