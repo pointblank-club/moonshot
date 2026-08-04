@@ -37,7 +37,8 @@ struct ConvertOCamlToBuiltin
       }
       if (auto opaque = llvm::dyn_cast<OpaqueType>(type)) {
         if (opaque.getDialectNamespace() == "ocaml") {
-          if (opaque.getTypeData() == "string") {
+          if (opaque.getTypeData() == "string" ||
+              opaque.getTypeData() == "array") {
             return ptrType;
           }
           if (opaque.getTypeData() == "int") {

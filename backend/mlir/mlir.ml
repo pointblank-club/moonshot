@@ -30,6 +30,10 @@ let ocaml_unit_type ctx =
   let str = StringRef.of_string "!ocaml.unit" in
   { Type.raw = Omlir_bindings.Ir.mlirTypeParseGet ctx.MlirContext.raw str.raw }
 
+let ocaml_array_type ctx =
+  let str = StringRef.of_string "!ocaml.array" in
+  { Type.raw = Omlir_bindings.Ir.mlirTypeParseGet ctx.MlirContext.raw str.raw }
+
 let ocaml_i64_type ctx =
   { Type.raw =
       Omlir_bindings.BuiltinTypes.mlirIntegerTypeGet ctx.MlirContext.raw 64
@@ -97,6 +101,41 @@ let create_unit builder loc block =
   append block op;
   Operation.get_result op 0
 
+let create_alloc_array builder loc block elements =
+  let ctx = builder.Builders.OpBuilder.ctx in
+  let state = Operation.State.get "ocaml.alloc_array" loc in
+  Operation.State.add_operands state elements;
+  Operation.State.add_results state [ocaml_array_type ctx];
+  let op = Operation.create state in
+  append block op;
+  Operation.get_result op 0
+
+let create_array_get _builder loc block arr index res_type =
+  let state = Operation.State.get "ocaml.array_get" loc in
+  Operation.State.add_operands state [arr; index];
+  Operation.State.add_results state [res_type];
+  let op = Operation.create state in
+  append block op;
+  Operation.get_result op 0
+
+let create_array_set builder loc block arr index value =
+  let ctx = builder.Builders.OpBuilder.ctx in
+  let state = Operation.State.get "ocaml.array_set" loc in
+  Operation.State.add_operands state [arr; index; value];
+  Operation.State.add_results state [ocaml_unit_type ctx];
+  let op = Operation.create state in
+  append block op;
+  Operation.get_result op 0
+
+let create_array_length builder loc block arr =
+  let ctx = builder.Builders.OpBuilder.ctx in
+  let state = Operation.State.get "ocaml.array_length" loc in
+  Operation.State.add_operands state [arr];
+  Operation.State.add_results state [ocaml_int_type ctx];
+  let op = Operation.create state in
+  append block op;
+  Operation.get_result op 0
+
 let create_binop builder loc block op_name lhs rhs =
   let ctx = builder.Builders.OpBuilder.ctx in
   let state = Operation.State.get "ocaml.binop" loc in
@@ -129,6 +168,8 @@ let map_ocaml_type_to_mlir ctx ty =
     ocaml_bool_type ctx
   | Types.Tconstr (path, _, _) when Path.same path Predef.path_unit ->
     ocaml_unit_type ctx
+  | Types.Tconstr (path, _, _) when Path.same path Predef.path_array ->
+    ocaml_array_type ctx
   | _ ->
     failwith
       (Format.asprintf "Unimplemented type: %a" Printtyp.Compat.type_expr ty)
@@ -358,6 +399,31 @@ let rec compile_expr env builder module_block block created_externs
     Some (create_float builder loc block (float_of_string value))
   | Texp_construct (_, { cstr_name = "()"; _ }, _, _) ->
     Some (create_unit builder loc block)
+  | Texp_array (_mut, _sort, exprs, _alloc_mode) ->
+    let is_float_elem =
+      match Types.get_desc expr.exp_type with
+      | Types.Tconstr (p, [elem_ty], _) when Path.same p Predef.path_array ->
+        is_float_type elem_ty
+      | _ ->
+        List.exists
+          (fun e ->
+            match e.Typedtree.exp_desc with
+            | Texp_constant (Const_float _) -> true
+            | _ -> is_float_type e.Typedtree.exp_type)
+          exprs
+    in
+    if is_float_elem
+    then
+      Ocaml_location.raise_errorf ~loc:expr.exp_loc
+        "Float arrays (ArrayOfFloats) are not supported yet"
+    else
+      let compiled_elems =
+        List.map
+          (compile_expr env builder module_block block created_externs)
+          exprs
+        |> List.filter_map Fun.id
+      in
+      Some (create_alloc_array builder loc block compiled_elems)
   | Texp_apply
       ( { exp_desc =
             Texp_ident
@@ -455,6 +521,22 @@ let rec compile_expr env builder module_block block created_externs
     | "%boolnot" -> (
       match args with
       | [value] -> Some (create_not builder loc block value)
+      | _ -> fallback ())
+    | "%array_safe_get" -> (
+      match args with
+      | [arr; idx] ->
+        let res_type =
+          map_ocaml_type_to_mlir builder.Builders.OpBuilder.ctx expr.exp_type
+        in
+        Some (create_array_get builder loc block arr idx res_type)
+      | _ -> fallback ())
+    | "%array_safe_set" -> (
+      match args with
+      | [arr; idx; v] -> Some (create_array_set builder loc block arr idx v)
+      | _ -> fallback ())
+    | "%array_length" -> (
+      match args with
+      | [arr] -> Some (create_array_length builder loc block arr)
       | _ -> fallback ())
     | _ -> fallback ())
   | Texp_let (_, bindings, body) ->

@@ -94,6 +94,10 @@ def FloatType : BoxedType<"Float", "float", 253> {
   let summary = "OCaml float type";
 }
 
+def ArrayType : BoxedType<"Array", "array", 0> {
+  let summary = "OCaml array type";
+}
+
 def IntType : UnboxedType<"Int", "int"> {
   let summary = "OCaml int type";
 }

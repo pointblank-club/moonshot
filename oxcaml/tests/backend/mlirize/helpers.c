@@ -17,6 +17,12 @@ CAMLprim value print_float(value v) {
   return Val_unit;
 }
 
+value caml_alloc(mlsize_t wosize, tag_t tag) {
+  uintnat *block = (uintnat *)malloc((wosize + 1) * sizeof(uintnat));
+  *block = ((uintnat)wosize << 10) | tag;
+  return (value)(block + 1);
+}
+
 /* Minimal stand-in for the runtime's caml_copy_double: the backend reboxes
    float results through it, and the run harness does not link the runtime. */
 value caml_copy_double(double d) {
@@ -40,4 +46,4 @@ __asm__(".globl caml_c_call\n"
 
 /* Mock domain state and thread-local caml_state pointer for tests */
 static caml_domain_state mock_domain_state;
-__thread caml_domain_state* caml_state = &mock_domain_state;
+__thread caml_domain_state *caml_state = &mock_domain_state;

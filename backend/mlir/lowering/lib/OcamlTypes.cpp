@@ -121,4 +121,54 @@ LogicalResult FloatType::constLowering(OpBuilder &builder, Attribute value,
       builder, loc, result, stringIndex, symNameVal, globalValStr);
 }
 
+/// Lowers an array constant to a tag-0 boxed block and returns its GEP.
+LogicalResult ArrayType::constLowering(OpBuilder &builder, Attribute value,
+                                       Location loc, Value &result,
+                                       unsigned &stringIndex,
+                                       StringRef symNameVal) const {
+  auto arrayAttr = llvm::dyn_cast<ArrayAttr>(value);
+  if (!arrayAttr)
+    return failure();
+
+  size_t numElems = arrayAttr.size();
+  uint64_t header = createBoxedHeader(numElems);
+  std::string globalValStr;
+  for (unsigned i = 0; i < 8; i++) {
+    globalValStr.push_back(static_cast<char>((header >> (i * 8)) & 0xff));
+  }
+
+  for (Attribute elem : arrayAttr) {
+    if (auto intAttr = llvm::dyn_cast<IntegerAttr>(elem)) {
+      int64_t rawVal = intAttr.getValue().getSExtValue();
+      int64_t tagged = (rawVal << 1) | 1;
+      for (unsigned i = 0; i < 8; i++) {
+        globalValStr.push_back(static_cast<char>((tagged >> (i * 8)) & 0xff));
+      }
+    } else if (auto floatAttr = llvm::dyn_cast<FloatAttr>(elem)) {
+      double doubleVal = floatAttr.getValueAsDouble();
+      uint64_t bits;
+      std::memcpy(&bits, &doubleVal, sizeof(bits));
+      for (unsigned i = 0; i < 8; i++) {
+        globalValStr.push_back(static_cast<char>((bits >> (i * 8)) & 0xff));
+      }
+    } else if (auto boolAttr = llvm::dyn_cast<BoolAttr>(elem)) {
+      int64_t rawVal = boolAttr.getValue() ? 1 : 0;
+      int64_t tagged = (rawVal << 1) | 1;
+      for (unsigned i = 0; i < 8; i++) {
+        globalValStr.push_back(static_cast<char>((tagged >> (i * 8)) & 0xff));
+      }
+    } else if (llvm::isa<UnitAttr>(elem)) {
+      int64_t tagged = 1ULL;
+      for (unsigned i = 0; i < 8; i++) {
+        globalValStr.push_back(static_cast<char>((tagged >> (i * 8)) & 0xff));
+      }
+    } else {
+      return failure();
+    }
+  }
+
+  return llvm::cast<ocaml::BoxedTypeInterface>(*this).lowerBoxedConstant(
+      builder, loc, result, stringIndex, symNameVal, globalValStr);
+}
+
 } // namespace ocaml
