@@ -21,6 +21,9 @@
 #define GET_OP_CLASSES
 #include "OCaml/OCamlOps.h.inc"
 
+#include "mlir/IR/BuiltinAttributes.h"
+#include "llvm/ADT/StringMap.h"
+
 namespace mlir {
 class TypeConverter;
 class RewritePatternSet;
@@ -31,6 +34,9 @@ namespace ocaml {
 struct LoweringState {
   unsigned stringIndex = 0;
   bool copyDoubleDeclared = false;
+  std::string moduleName;
+  llvm::StringMap<std::string> externTargets;
+  llvm::StringMap<mlir::TypeAttr> externTypes;
 };
 
 void populateOcamlOpsPatterns(::mlir::RewritePatternSet &patterns,

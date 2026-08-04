@@ -97,10 +97,10 @@ let%expect_test "float_arith" =
   [%expect
     {|
     module {
+      llvm.func @caml_copy_double(f64) -> i64
       llvm.mlir.global external constant @camlFloat_arith.1("\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\F8?") {addr_space = 0 : i32}
       llvm.mlir.global external constant @camlFloat_arith.2("\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\00@") {addr_space = 0 : i32}
       llvm.mlir.global external constant @camlFloat_arith.3("\FD\07\00\00\00\00\00\00\00\00\00\00\00\00\08@") {addr_space = 0 : i32}
-      llvm.func @caml_copy_double(f64) -> i64
       llvm.func @camlFloat_arith__entry() -> i64 {
         %0 = llvm.mlir.addressof @camlFloat_arith.1 : !llvm.ptr
         %1 = llvm.getelementptr %0[8] : (!llvm.ptr) -> !llvm.ptr, i8

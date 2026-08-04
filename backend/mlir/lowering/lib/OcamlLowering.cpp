@@ -52,53 +52,33 @@ struct ConvertOCamlToBuiltin
     });
 
     auto loweringState = std::make_shared<ocaml::LoweringState>();
-    {
-      ConversionTarget target(*context);
-      target.addLegalDialect<LLVM::LLVMDialect>();
-      target.addLegalOp<ocaml::ModuleOp, ocaml::ExternOp, ocaml::EntryOp>();
-      target.addIllegalOp<ocaml::ConstantOp, ocaml::ExternCallOp, ocaml::BinOp,
-                          ocaml::CmpOp, ocaml::AndOp, ocaml::OrOp, ocaml::NotOp,
-                          ocaml::FunctionOp, ocaml::ReturnOp, ocaml::CallOp>();
-
-      RewritePatternSet patterns(context);
-      ocaml::populateOcamlOpsPatterns(patterns, typeConverter, context,
-                                      loweringState);
-
-      if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
-        signalPassFailure();
-        return;
+    module.walk([&](ocaml::ModuleOp modOp) {
+      if (auto symName = modOp.getSymName()) {
+        loweringState->moduleName = symName->str();
       }
-    }
-
-    {
-      ConversionTarget target(*context);
-      target.addLegalDialect<LLVM::LLVMDialect>();
-      target.addLegalOp<ocaml::ModuleOp, ocaml::ExternOp>();
-      target.addIllegalOp<ocaml::EntryOp>();
-
-      RewritePatternSet patterns(context);
-      ocaml::populateOcamlOpsPatterns(patterns, typeConverter, context,
-                                      loweringState);
-
-      if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
-        signalPassFailure();
-        return;
+      for (Operation &op : modOp.getBody().front()) {
+        if (auto externOp = dyn_cast<ocaml::ExternOp>(op)) {
+          loweringState->externTargets[externOp.getSymName()] =
+              externOp.getTarget().str();
+          if (auto funcTypeAttr =
+                  externOp->getAttrOfType<TypeAttr>("function_type")) {
+            loweringState->externTypes[externOp.getSymName()] = funcTypeAttr;
+          }
+        }
       }
-    }
+    });
 
-    {
-      ConversionTarget target(*context);
-      target.addLegalDialect<LLVM::LLVMDialect>();
-      target.addIllegalDialect<ocaml::OCamlDialect>();
+    ConversionTarget target(*context);
+    target.addLegalDialect<LLVM::LLVMDialect>();
+    target.addIllegalDialect<ocaml::OCamlDialect>();
 
-      RewritePatternSet patterns(context);
-      ocaml::populateOcamlOpsPatterns(patterns, typeConverter, context,
-                                      loweringState);
+    RewritePatternSet patterns(context);
+    ocaml::populateOcamlOpsPatterns(patterns, typeConverter, context,
+                                    loweringState);
 
-      if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
-        signalPassFailure();
-        return;
-      }
+    if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
+      signalPassFailure();
+      return;
     }
   }
 };
