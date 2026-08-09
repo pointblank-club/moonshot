@@ -130,8 +130,10 @@ let test_compile_and_run ~name ~code =
     "extern long %s(void);\nint main(void) {\n  %s();\n  return 0;\n}\n"
     entry_sym entry_sym;
   close_out oc;
+  let ocamllib = find_ocamllib () in
   let bin_cmd =
-    Printf.sprintf "gcc -o %s.exe %s.o helpers.o %s > %s.build_bin.stdout 2>&1"
+    Printf.sprintf
+      "gcc -I%s -o %s.exe %s.o helpers.c %s > %s.build_bin.stdout 2>&1" ocamllib
       prefix prefix main_c prefix
   in
   let bin_exit = Sys.command bin_cmd in

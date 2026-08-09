@@ -129,4 +129,36 @@ def ConstantOp : OCaml_Op<"constant", [ConstantLike, Pure]> {
   let hasFolder = 1;
 }
 
+def AllocArrayOp : OCaml_Op<"alloc_array"> {
+  let summary = "Allocates an OCaml array block on the heap with initial values";
+  let arguments = (ins Variadic<Ocaml_Type>:$elements);
+  let results = (outs ArrayType:$result);
+  let assemblyFormat =
+      "`(` $elements `)` attr-dict `:` functional-type($elements, results)";
+}
+
+def ArrayGetOp : OCaml_Op<"array_get"> {
+  let summary = "Gets an element from an OCaml array";
+  let arguments = (ins ArrayType:$array, IntType:$index);
+  let results = (outs Ocaml_Type:$result);
+  let assemblyFormat =
+      "$array `[` $index `]` attr-dict `:` type($array) `,` type($index) `->` type($result)";
+}
+
+def ArraySetOp : OCaml_Op<"array_set"> {
+  let summary = "Sets an element in an OCaml array";
+  let arguments = (ins ArrayType:$array, IntType:$index, Ocaml_Type:$value);
+  let results = (outs UnitType:$result);
+  let assemblyFormat =
+      "$array `[` $index `]` `=` $value attr-dict `:` type($array) `,` type($index) `,` type($value) `->` type($result)";
+}
+
+def ArrayLenOp : OCaml_Op<"array_length"> {
+  let summary = "Gets the length of an OCaml array as a tagged int";
+  let arguments = (ins ArrayType:$array);
+  let results = (outs IntType:$result);
+  let assemblyFormat =
+      "$array attr-dict `:` type($array) `->` type($result)";
+}
+
 #endif // OCAML_OPS

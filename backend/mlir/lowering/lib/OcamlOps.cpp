@@ -16,13 +16,35 @@ namespace {
 /// Assures the presence of an LLVM function declaration in the parent module.
 LLVM::LLVMFuncOp ensureFunction(OpBuilder &builder, Location loc,
                                 StringRef name, LLVM::LLVMFunctionType type) {
-  if (auto module =
-          builder.getBlock() ? builder.getBlock()->getParentOp() : nullptr) {
-    if (auto existing = dyn_cast_or_null<LLVM::LLVMFuncOp>(
-            SymbolTable::lookupSymbolIn(module, name))) {
-      return existing;
+  Block *moduleBlock = nullptr;
+  Operation *parent =
+      builder.getBlock() ? builder.getBlock()->getParentOp() : nullptr;
+  while (parent) {
+    if (auto mod = dyn_cast<ocaml::ModuleOp>(parent)) {
+      moduleBlock = &mod.getBody().front();
+      break;
     }
+    if (auto mod = dyn_cast<ModuleOp>(parent)) {
+      moduleBlock = mod.getBody();
+      break;
+    }
+    parent = parent->getParentOp();
   }
+
+  if (moduleBlock) {
+    for (Operation &op : *moduleBlock) {
+      if (auto func = dyn_cast<LLVM::LLVMFuncOp>(op)) {
+        if (func.getName() == name) {
+          return func;
+        }
+      }
+    }
+    OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPointToStart(moduleBlock);
+    return LLVM::LLVMFuncOp::create(builder, loc, name, type,
+                                    LLVM::Linkage::External);
+  }
+
   return LLVM::LLVMFuncOp::create(builder, loc, name, type,
                                   LLVM::Linkage::External);
 }
@@ -710,6 +732,141 @@ struct NotOpLowering : public OpConversionPattern<ocaml::NotOp> {
     auto result = LLVM::XOrOp::create(rewriter, op.getLoc(), i64Type,
                                       adaptor.getValue(), two.getResult());
     rewriter.replaceOp(op, result.getResult());
+    return success();
+  }
+};
+
+struct AllocArrayOpLowering : public OpConversionPattern<ocaml::AllocArrayOp> {
+  AllocArrayOpLowering(const TypeConverter &typeConverter, MLIRContext *context,
+                       std::shared_ptr<ocaml::LoweringState> = nullptr)
+      : OpConversionPattern<ocaml::AllocArrayOp>(typeConverter, context) {}
+
+  LogicalResult
+  matchAndRewrite(ocaml::AllocArrayOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    Location loc = op.getLoc();
+    auto ptrType = LLVM::LLVMPointerType::get(getContext());
+    auto i64Type = rewriter.getI64Type();
+    auto i32Type = rewriter.getI32Type();
+
+    size_t numElements = op.getElements().size();
+    auto sizeConst =
+        LLVM::ConstantOp::create(rewriter, loc, i64Type, numElements);
+    auto tagConst = LLVM::ConstantOp::create(rewriter, loc, i32Type, 0);
+
+    auto allocFuncType =
+        LLVM::LLVMFunctionType::get(ptrType, {i64Type, i32Type}, false);
+    auto allocFunc = ensureFunction(rewriter, loc, "caml_alloc", allocFuncType);
+
+    auto callAlloc = LLVM::CallOp::create(rewriter, loc, allocFunc,
+                                          ValueRange{sizeConst, tagConst});
+    Value arrayPtr = callAlloc.getResult();
+
+    for (size_t i = 0; i < numElements; ++i) {
+      Value elemVal = adaptor.getElements()[i];
+      auto idxConst = LLVM::ConstantOp::create(rewriter, loc, i64Type, i);
+      auto gep = LLVM::GEPOp::create(
+          rewriter, loc, ptrType, i64Type, arrayPtr,
+          ArrayRef<LLVM::GEPArg>{LLVM::GEPArg(idxConst.getResult())},
+          LLVM::GEPNoWrapFlags::none, {});
+      LLVM::StoreOp::create(rewriter, loc, elemVal, gep.getResult());
+    }
+
+    rewriter.replaceOp(op, arrayPtr);
+    return success();
+  }
+};
+
+struct ArrayGetOpLowering : public OpConversionPattern<ocaml::ArrayGetOp> {
+  ArrayGetOpLowering(const TypeConverter &typeConverter, MLIRContext *context,
+                     std::shared_ptr<ocaml::LoweringState> = nullptr)
+      : OpConversionPattern<ocaml::ArrayGetOp>(typeConverter, context) {}
+
+  LogicalResult
+  matchAndRewrite(ocaml::ArrayGetOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    Location loc = op.getLoc();
+    auto ptrType = LLVM::LLVMPointerType::get(getContext());
+    auto i64Type = rewriter.getI64Type();
+
+    auto one = LLVM::ConstantOp::create(rewriter, loc, i64Type, 1ULL);
+    auto untaggedIdx = LLVM::LShrOp::create(
+        rewriter, loc, i64Type, adaptor.getIndex(), one.getResult());
+
+    auto gep = LLVM::GEPOp::create(
+        rewriter, loc, ptrType, i64Type, adaptor.getArray(),
+        ArrayRef<LLVM::GEPArg>{LLVM::GEPArg(untaggedIdx.getResult())},
+        LLVM::GEPNoWrapFlags::none, {});
+
+    Type resultType = typeConverter->convertType(op.getResult().getType());
+    if (!resultType)
+      resultType = i64Type;
+
+    auto loadedVal =
+        LLVM::LoadOp::create(rewriter, loc, resultType, gep.getResult());
+    rewriter.replaceOp(op, loadedVal.getResult());
+    return success();
+  }
+};
+
+struct ArraySetOpLowering : public OpConversionPattern<ocaml::ArraySetOp> {
+  ArraySetOpLowering(const TypeConverter &typeConverter, MLIRContext *context,
+                     std::shared_ptr<ocaml::LoweringState> = nullptr)
+      : OpConversionPattern<ocaml::ArraySetOp>(typeConverter, context) {}
+
+  LogicalResult
+  matchAndRewrite(ocaml::ArraySetOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    Location loc = op.getLoc();
+    auto ptrType = LLVM::LLVMPointerType::get(getContext());
+    auto i64Type = rewriter.getI64Type();
+
+    auto one = LLVM::ConstantOp::create(rewriter, loc, i64Type, 1ULL);
+    auto untaggedIdx = LLVM::LShrOp::create(
+        rewriter, loc, i64Type, adaptor.getIndex(), one.getResult());
+
+    auto gep = LLVM::GEPOp::create(
+        rewriter, loc, ptrType, i64Type, adaptor.getArray(),
+        ArrayRef<LLVM::GEPArg>{LLVM::GEPArg(untaggedIdx.getResult())},
+        LLVM::GEPNoWrapFlags::none, {});
+
+    LLVM::StoreOp::create(rewriter, loc, adaptor.getValue(), gep.getResult());
+
+    Value unitVal = LLVM::ConstantOp::create(rewriter, loc, i64Type, 1ULL);
+    rewriter.replaceOp(op, unitVal);
+    return success();
+  }
+};
+
+struct ArrayLenOpLowering : public OpConversionPattern<ocaml::ArrayLenOp> {
+  ArrayLenOpLowering(const TypeConverter &typeConverter, MLIRContext *context,
+                     std::shared_ptr<ocaml::LoweringState> = nullptr)
+      : OpConversionPattern<ocaml::ArrayLenOp>(typeConverter, context) {}
+
+  LogicalResult
+  matchAndRewrite(ocaml::ArrayLenOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    Location loc = op.getLoc();
+    auto ptrType = LLVM::LLVMPointerType::get(getContext());
+    auto i64Type = rewriter.getI64Type();
+
+    auto minusOne = LLVM::ConstantOp::create(rewriter, loc, i64Type, -1LL);
+    auto headerGep = LLVM::GEPOp::create(
+        rewriter, loc, ptrType, i64Type, adaptor.getArray(),
+        ArrayRef<LLVM::GEPArg>{LLVM::GEPArg(minusOne.getResult())},
+        LLVM::GEPNoWrapFlags::none, {});
+
+    auto headerVal =
+        LLVM::LoadOp::create(rewriter, loc, i64Type, headerGep.getResult());
+
+    auto nine = LLVM::ConstantOp::create(rewriter, loc, i64Type, 9ULL);
+    auto shifted = LLVM::LShrOp::create(
+        rewriter, loc, i64Type, headerVal.getResult(), nine.getResult());
+    auto one = LLVM::ConstantOp::create(rewriter, loc, i64Type, 1ULL);
+    auto taggedLen = LLVM::OrOp::create(rewriter, loc, i64Type,
+                                        shifted.getResult(), one.getResult());
+
+    rewriter.replaceOp(op, taggedLen.getResult());
     return success();
   }
 };
