@@ -62,6 +62,19 @@ let create_string builder loc block value =
   append block op;
   Operation.get_result op 0
 
+let create_bool builder loc block b =
+  let ctx = builder.Builders.OpBuilder.ctx in
+  let state = Operation.State.get "ocaml.constant" loc in
+  let value = if b then 1 else 0 in
+  Operation.State.add_attributes state
+    [ Attribute.get_named
+        (Identifier.get ctx "value")
+        (Attribute.get_integer64 (ocaml_i64_type ctx) (Int64.of_int value))];
+  Operation.State.add_results state [ocaml_bool_type ctx];
+  let op = Operation.create state in
+  append block op;
+  Operation.get_result op 0
+
 let create_int builder loc block value =
   let ctx = builder.Builders.OpBuilder.ctx in
   let state = Operation.State.get "ocaml.constant" loc in
@@ -397,6 +410,10 @@ let rec compile_expr env builder module_block block created_externs
     Some (create_string builder loc block value)
   | Texp_constant (Const_float value) ->
     Some (create_float builder loc block (float_of_string value))
+  | Texp_construct (_, { cstr_name = "true"; _}, [], _) ->
+    Some (create_bool builder loc block true)
+  | Texp_construct (_, { cstr_name = "false"; _}, [], _) ->
+    Some (create_bool builder loc block false)
   | Texp_construct (_, { cstr_name = "()"; _ }, _, _) ->
     Some (create_unit builder loc block)
   | Texp_array (_mut, _sort, exprs, _alloc_mode) ->
